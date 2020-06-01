@@ -15,6 +15,22 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://raw.githubusercontent.com/mijibox/openfin-java-gateway/master/LICENSE</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>mijibox</id>
+			<name>MIJI Technology LLC</name>
+			<email>anthony@mijibox.com</email>
+		</developer>
+	</developers>
+
 	<scm>
 		<connection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</connection>
 		<developerConnection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</developerConnection>
