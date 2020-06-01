@@ -1,20 +1,42 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mijibox.openfin</groupId>
 	<artifactId>openfin-gateway</artifactId>
 	<version>1.1-SNAPSHOT</version>
+
+	<name>openfin-gateway</name>
+	<description>OpenFin Gateway</description>
+	<url>https://github.com/mijibox/openfin-java-gateway</url>
 
 	<properties>
 		<maven.compiler.release>11</maven.compiler.release>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://raw.githubusercontent.com/mijibox/openfin-java-gateway/master/LICENSE</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>mijibox</id>
+			<name>MIJI Technology LLC</name>
+			<email>anthony@mijibox.com</email>
+		</developer>
+	</developers>
+
 	<scm>
 		<connection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</connection>
 		<developerConnection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</developerConnection>
 		<url>https://github.com/mijibox/openfin-java-gateway</url>
-	  <tag>HEAD</tag>
-  </scm>
+		<tag>openfin-gateway-1.0</tag>
+	</scm>
 
 	<dependencies>
 		<dependency>
@@ -100,6 +122,20 @@
 					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
 					<autoReleaseAfterClose>true</autoReleaseAfterClose>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-gpg-plugin</artifactId>
+				<version>1.6</version>
+				<executions>
+					<execution>
+						<id>sign-artifacts</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>sign</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
