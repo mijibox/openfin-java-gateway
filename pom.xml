@@ -1,8 +1,14 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mijibox.openfin</groupId>
 	<artifactId>openfin-gateway</artifactId>
 	<version>1.0</version>
+
+	<name>openfin-gateway</name>
+	<description>OpenFin Gateway</description>
+	<url>https://github.com/mijibox/openfin-java-gateway</url>
 
 	<properties>
 		<maven.compiler.release>11</maven.compiler.release>
@@ -13,8 +19,8 @@
 		<connection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</connection>
 		<developerConnection>scm:git:https://github.com/mijibox/openfin-java-gateway.git</developerConnection>
 		<url>https://github.com/mijibox/openfin-java-gateway</url>
-	  <tag>openfin-gateway-1.0</tag>
-  </scm>
+		<tag>openfin-gateway-1.0</tag>
+	</scm>
 
 	<dependencies>
 		<dependency>
