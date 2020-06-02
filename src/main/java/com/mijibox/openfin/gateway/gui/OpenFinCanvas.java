@@ -151,13 +151,10 @@ public class OpenFinCanvas extends Canvas {
 
 	public CompletionStage<Void> unembed() {
 		if (this.windowProxy != null) {
-			System.out.println("this.previousParent: " + this.previousParent);
-			System.out.println("this.openFinWinStyle: " + this.originalWinStyle);
 			User32.INSTANCE.ShowWindow(openFinHwnd, User32.SW_HIDE);
 			User32.INSTANCE.SetParent(openFinHwnd, this.previousParent);
 			User32.INSTANCE.SetWindowLong(openFinHwnd, User32.GWL_EXSTYLE, this.originalWinStyle);
 			return this.windowProxy.invoke("setBounds", this.originalBounds).thenCompose(r -> {
-				System.out.println("this.originalWinOpt: " + this.originalWinOpt);
 				return this.windowProxy.invoke("updateOptions", this.originalWinOpt);
 			}).thenAccept(v->{
 				User32.INSTANCE.ShowWindow(openFinHwnd, User32.SW_SHOW);
