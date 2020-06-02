@@ -157,7 +157,6 @@ public class OpenFinConnection implements Listener {
 	public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
 		logger.debug("websocket closed, statusCode: {}, reason: {}", statusCode, reason);
 		this.connected = false;
-		this.processMessageThreadPool.shutdown();
 		for (Listener l : this.webSocketListeners) {
 			try {
 				l.onClose(webSocket, statusCode, reason);
@@ -166,6 +165,7 @@ public class OpenFinConnection implements Listener {
 				logger.error("error invoking socket listener", e);
 			}
 		}
+		this.processMessageThreadPool.shutdown();
 		return null;
 	}
 
@@ -181,6 +181,7 @@ public class OpenFinConnection implements Listener {
 				logger.error("error invoking socket listener", e);
 			}
 		}
+		this.processMessageThreadPool.shutdown();
 	}
 
 	public synchronized CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
