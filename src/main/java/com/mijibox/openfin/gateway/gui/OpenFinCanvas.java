@@ -10,7 +10,6 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonString;
 import javax.json.JsonValue;
-import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,20 +18,14 @@ import com.mijibox.openfin.gateway.OpenFinConnection;
 import com.mijibox.openfin.gateway.OpenFinGateway;
 import com.mijibox.openfin.gateway.ProxyObject;
 import com.sun.jna.Native;
-import com.sun.jna.NativeLong;
 import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
-import com.sun.jna.platform.unix.X11;
-import com.sun.jna.platform.unix.X11.Display;
-import com.sun.jna.platform.unix.X11.Window;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinDef.HWND;
 
 public class OpenFinCanvas extends Canvas {
 	private static Logger logger = LoggerFactory.getLogger(OpenFinCanvas.class);
-
-	private static XLibrary xLib;
 
 	private static final long serialVersionUID = 1900507991613110454L;
 	private OpenFinGateway gateway;
@@ -43,13 +36,9 @@ public class OpenFinCanvas extends Canvas {
 	private HWND previousParent;
 	private JsonValue originalWinOpt;
 	private JsonObject originalBounds;
-	
-	static {
-		System.loadLibrary("jawt");
-		xLib = Native.load("X11", XLibrary.class);
-	}
 
 	public OpenFinCanvas(OpenFinGateway gateway) {
+		this.setVisible(true);
 		this.gateway = gateway;
 		this.addComponentListener(new ComponentAdapter() {
 			@Override
@@ -105,11 +94,11 @@ public class OpenFinCanvas extends Canvas {
 	}
 
 	public CompletionStage<Void> embed(JsonObject targetIdentity) {
-		long canvasId = Native.getComponentID(this);
 		if (Platform.isWindows()) {
+			long canvasId = Native.getComponentID(this);
 			return this.gateway.invoke(true, "fin.Window.wrap", targetIdentity).thenCompose(r -> {
 				//create windowProxy from targetIdentity
-				logger.info("will embed: {} into {}", targetIdentity, canvasId);
+				logger.debug("will embed: {} into {}", targetIdentity, canvasId);
 				this.windowProxy = r.getProxyObject();
 				//get original bounds
 				return this.windowProxy.invoke("getBounds");
@@ -156,58 +145,8 @@ public class OpenFinCanvas extends Canvas {
 
 			});
 		}
-		else if (Platform.isLinux()){
-			logger.info("canvasId: {}", canvasId);
-			return this.gateway.invoke(true, "fin.Window.wrap", targetIdentity).thenCompose(r -> {
-				//create windowProxy from targetIdentity
-				logger.info("will embed: {} into {}", targetIdentity, canvasId);
-				this.windowProxy = r.getProxyObject();
-				//get original bounds
-				return this.windowProxy.invoke("getBounds");
-			}).thenCompose(b->{
-				this.originalBounds = (JsonObject)b.getResult();
-				//get original options
-				return this.windowProxy.invoke("getOptions");
-			}).thenCompose(optResult -> {
-				this.originalWinOpt = optResult.getResult();
-				JsonObject newOpts = Json.createObjectBuilder()
-						.add("maxHeight", -1)
-						.add("minHeight", -1)
-						.add("maxWidth", -1)
-						.add("minWidth", -1)
-						.add("resizable", false)
-						.add("frame", false).build();
-				//set options when embedded
-				return this.windowProxy.invoke("updateOptions", newOpts);
-			}).thenCompose(v -> {
-				//get native window id
-				return this.windowProxy.invoke("getNativeId");
-			}).thenCompose(r2 -> {
-				JsonString v = (JsonString) r2.getResult();
-				logger.info("openfin window native id: {}", v);
-				
-				long openfinWinId = Long.decode(v.getString());
-				
-				Window canvasWin = new Window(canvasId);
-				Window openFinWin = new Window(openfinWinId);
-				Display display = xLib.XOpenDisplay(null);
-				xLib.XReparentWindow(display, openFinWin, canvasWin, 0, 0);
-				xLib.XFlush(display);
-				return setEmbeddedWindowBounds(0, 0, this.getWidth(), this.getHeight());
-			}).thenCompose(rEmbed -> {
-				//tell openfin runtime that we have embedded the window.
-				OpenFinConnection conn = gateway.getOpenFinInterApplicationBus().getConnection();
-				JsonObject payload = Json.createObjectBuilder(targetIdentity)
-						.add("parentHwnd", Long.toHexString(canvasId)).build();
-				return conn.sendMessage("window-embedded", payload);
-			}).thenCompose(a -> {
-				//if not already shown, make it visible.
-				return windowProxy.invoke("show");
-			}).thenAccept(a -> {
-			});
-		}
 		else {
-			return CompletableFuture.failedStage(new RuntimeException("embed feature not implemented on this platform"));
+			return CompletableFuture.failedStage(new RuntimeException("Not implemented on this platform"));
 		}
 	}
 
@@ -229,12 +168,6 @@ public class OpenFinCanvas extends Canvas {
 
 	public ProxyObject getEmbeddedWindow() {
 		return this.windowProxy;
-	}
-	
-	interface XLibrary extends X11 {
-		int XReparentWindow(Display display, Window w, Window parent, int x, int y);
-
-		int XAddToSaveSet(Display display, Window w);
 	}
 
 }

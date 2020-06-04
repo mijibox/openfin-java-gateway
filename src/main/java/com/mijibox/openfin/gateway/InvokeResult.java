@@ -20,7 +20,13 @@ package com.mijibox.openfin.gateway;
 import static com.mijibox.openfin.gateway.OpenFinGatewayImpl.PROXY_OBJECT_ID;
 import static com.mijibox.openfin.gateway.OpenFinGatewayImpl.RESULT;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
+import javax.json.JsonArray;
+import javax.json.JsonNumber;
 import javax.json.JsonObject;
+import javax.json.JsonString;
 import javax.json.JsonValue;
 
 public class InvokeResult {
@@ -49,4 +55,48 @@ public class InvokeResult {
 	public JsonValue getResult() {
 		return this.result;
 	}
+	
+	public Boolean getResultAsBoolean() {
+		Boolean b = null;
+		if (result != null && JsonValue.TRUE.equals(result)) {
+			b = Boolean.TRUE;
+		}
+		else if (result != null) {
+			b = Boolean.FALSE;
+		}
+		return b;
+	}
+	
+	public Integer getResultAsInteger() {
+		return this.result== null ? null : Integer.valueOf(((JsonNumber)this.result).intValue());
+	}
+
+	public Long getResultAsLong() {
+		return this.result== null ? null : Long.valueOf(((JsonNumber)this.result).longValue());
+	}
+
+	public Double getResultAsDouble() {
+		return this.result== null ? null : Double.valueOf(((JsonNumber)this.result).doubleValue());
+	}
+
+	public BigInteger getResultAsBigInteger() {
+		return this.result== null ? null : ((JsonNumber)this.result).bigIntegerValue();
+	}
+	
+	public BigDecimal getResultAsBigDecimal() {
+		return this.result== null ? null : ((JsonNumber)this.result).bigDecimalValue();
+	}
+	
+	public String getResultAsString() {
+		return this.result == null ? null : ((JsonString) this.result).getString();
+	}
+
+	public JsonObject getResultAsJsonObject() {
+		return (JsonObject) this.result;
+	}
+	
+	public JsonArray getResultAsJsonArray() {
+		return (JsonArray) this.result;
+	}
+
 }
