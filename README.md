@@ -9,29 +9,31 @@ The following code snippet shows how to connect to OpenFin Runtime and invoke Op
  
 ```java
 OpenFinLauncher.newOpenFinLauncherBuilder()
-		.addRuntimeOption("--v=1")
-		.open(gatewayListener)
-		.thenAccept(gateway -> {
-			gateway.invoke("fin.System.getVersion").thenAccept(r -> {
-				System.out.println("openfin version: " + r.getResultAsString());
-			});
+        .addRuntimeOption("--v=1")
+        .addRuntimeOption("--no-sandbox")
+        .open(gatewayListener)
+        .thenAccept(gateway -> {
+            gateway.invoke("fin.System.getVersion").thenAccept(r -> {
+                System.out.println("openfin version: " + r.getResultAsString());
+            });
 
-			gateway.invoke(true, "fin.Application.startFromManifest",
-					Json.createValue("https://cdn.openfin.co/demos/hello/app.json")).thenAccept(r -> {
-						JsonObject appObj = r.getResultAsJsonObject();
-						System.out.println("appUuid: " + appObj.getJsonObject("identity").getString("uuid"));
-						ProxyObject proxyAppObj = r.getProxyObject();
-						proxyAppObj.addListener("on", "closed", (e) -> {
-							System.out.println("hello openfin closed, listener got event: " + e);
-							gateway.close();
-						});
-					}).exceptionally(e -> {
-						System.err.println("error starting hello openfin app");
-						e.printStackTrace();
-						gateway.close();
-						return null;
-					});
-		});
+            gateway.invoke(true, "fin.Application.startFromManifest",
+                    Json.createValue("https://cdn.openfin.co/demos/hello/app.json")).thenAccept(r -> {
+                        JsonObject appObj = r.getResultAsJsonObject();
+                        System.out.println("appUuid: " + appObj.getJsonObject("identity").getString("uuid"));
+                        ProxyObject proxyAppObj = r.getProxyObject();
+                        proxyAppObj.addListener("on", "closed", (e) -> {
+                            System.out.println("hello openfin closed, listener got event: " + e);
+                            gateway.close();
+                        });
+                    }).exceptionally(e -> {
+                        System.err.println("error starting hello openfin app");
+                        e.printStackTrace();
+                        gateway.close();
+                        return null;
+                    });
+        });
+
 
 ```
 
