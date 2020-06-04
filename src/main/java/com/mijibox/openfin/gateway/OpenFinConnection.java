@@ -18,9 +18,11 @@ limitations under the License.
 package com.mijibox.openfin.gateway;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
@@ -29,6 +31,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -106,6 +109,25 @@ public class OpenFinConnection implements Listener {
 	public void disconnect() {
 		this.webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "normal closure");
 	}
+	
+	private String getPackageVersion() {
+		String v = "N/A";
+		try {
+			URL manifest = this.getClass().getClassLoader().getResource("META-INF/maven/com.mijibox.openfin/openfin-gateway/pom.properties");
+			Properties prop = new Properties();
+			InputStream inputStream = manifest.openStream();
+			prop.load(inputStream);
+			v = prop.getProperty("version");
+			inputStream.close();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+		finally {
+			
+		}
+		return v;
+	}
 
 	@Override
 	public void onOpen(WebSocket webSocket) {
@@ -128,7 +150,7 @@ public class OpenFinConnection implements Listener {
 						.add("type", "file-token")
 						.add("client", Json.createObjectBuilder()
 								.add("type", "java")
-								.add("version", "1.0-SNAPSHOT").build())
+								.add("version", getPackageVersion()).build())
 						.build())
 				.build();
 
@@ -157,7 +179,6 @@ public class OpenFinConnection implements Listener {
 	public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
 		logger.debug("websocket closed, statusCode: {}, reason: {}", statusCode, reason);
 		this.connected = false;
-		this.processMessageThreadPool.shutdown();
 		for (Listener l : this.webSocketListeners) {
 			try {
 				l.onClose(webSocket, statusCode, reason);
@@ -166,6 +187,7 @@ public class OpenFinConnection implements Listener {
 				logger.error("error invoking socket listener", e);
 			}
 		}
+		this.processMessageThreadPool.shutdown();
 		return null;
 	}
 
@@ -181,6 +203,7 @@ public class OpenFinConnection implements Listener {
 				logger.error("error invoking socket listener", e);
 			}
 		}
+		this.processMessageThreadPool.shutdown();
 	}
 
 	public synchronized CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {

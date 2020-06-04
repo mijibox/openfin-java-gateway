@@ -87,8 +87,8 @@ public class OpenFinGatewayApiTest {
 
 	@Test
 	public void invokeNoArg() throws Exception {
-		String invokeResult = apiGateway.invoke("fin.System.getVersion").thenApply(result -> {
-			return ((JsonString) result.getResult()).getString();
+		String invokeResult = apiGateway.invoke("fin.System.getVersion").thenApply(r -> {
+			return r.getResultAsString();
 		}).toCompletableFuture().get(20, TimeUnit.SECONDS);
 		logger.debug("fin.System.getVersion returns: {}", invokeResult);
 		assertEquals(runtimeVersion, invokeResult);
