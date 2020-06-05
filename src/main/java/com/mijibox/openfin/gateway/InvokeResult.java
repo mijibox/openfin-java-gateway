@@ -47,7 +47,7 @@ public class InvokeResult {
 
 	public ProxyObject getProxyObject() {
 		if (this.proxyObject == null && this.proxyObjId != null) {
-			this.proxyObject = new ProxyObject(this.proxyObjId, this.invoker, this.apiGateway);
+			this.proxyObject = new ProxyObject(this.proxyObjId, this.getResultAsJsonObject(), this.invoker, this.apiGateway);
 		}
 		return this.proxyObject;
 	}

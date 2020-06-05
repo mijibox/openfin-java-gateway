@@ -19,15 +19,18 @@ package com.mijibox.openfin.gateway;
 
 import java.util.concurrent.CompletionStage;
 
+import javax.json.JsonObject;
 import javax.json.JsonValue;
 
 public class ProxyObject {
 	JsonValue proxyObjId;
 	OpenFinGatewayImpl apiGateway;
 	ProxyObject invoker;
+	JsonObject jsonObject;
 
-	ProxyObject(JsonValue proxyObjId, ProxyObject invoker, OpenFinGatewayImpl apiGateway) {
+	ProxyObject(JsonValue proxyObjId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl apiGateway) {
 		this.proxyObjId = proxyObjId;
+		this.jsonObject = jsonObject;
 		this.invoker = invoker;
 		this.apiGateway = apiGateway;
 	}
@@ -56,6 +59,10 @@ public class ProxyObject {
 		return this.apiGateway.addInstanceListener(createProxyListener, this, method, event, listener);
 	}
 
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinActionListener listener, JsonValue... args) {
+		return this.apiGateway.addInstanceActionListener(createProxyListener, this, method, listener, 1, args);
+	}
+
 	public CompletionStage<Void> removeListener(String method, String event, ProxyListener listener) {
 		return this.apiGateway.removeInstanceListener(this, method, event, listener);
 	}
@@ -66,5 +73,9 @@ public class ProxyObject {
 
 	public JsonValue getProxyObjectId() {
 		return this.proxyObjId;
+	}
+	
+	public JsonObject getProxyJsonObject() {
+		return this.jsonObject;
 	}
 }

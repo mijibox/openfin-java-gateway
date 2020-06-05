@@ -64,6 +64,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	final static String METHOD = "method";
 	final static String PAYLOAD = "payload";
 	final static String RESULT = "result";
+	final static String LINSTENER_ARG_INDEX = "listenerArgIdx";
 
 	private OpenFinInterApplicationBus iab;
 	private JsonObject gatewayIdentity;
@@ -100,18 +101,22 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		this.topicListener = gatewayId + "-listener";
 		this.iab = connection.getInterAppBus();
 	}
+	
+	private void processIncomingMessage(JsonValue srcIdentity, JsonValue message) {
+		JsonObject msg = ((JsonObject) message);
+		String action = msg.getString(ACTION);
+		CompletableFuture<JsonObject> resultFuture = this.execCorrelationMap.get(msg.getInt(MESSAGE_ID));
+		if (ACTION_ERROR.equals(action)) {
+			resultFuture.completeExceptionally(new RuntimeException("error: " + msg));
+		}
+		else {
+			resultFuture.complete(msg);
+		}
+	}
 
 	private CompletionStage<OpenFinGateway> init() {
 		return this.iab.subscribe(this.gatewayIdentity, this.topicExec, (srcIdentity, message) -> {
-			JsonObject msg = ((JsonObject) message);
-			String action = msg.getString(ACTION);
-			CompletableFuture<JsonObject> resultFuture = this.execCorrelationMap.get(msg.getInt(MESSAGE_ID));
-			if (ACTION_ERROR.equals(action)) {
-				resultFuture.completeExceptionally(new RuntimeException("error: " + msg));
-			}
-			else {
-				resultFuture.complete(msg);
-			}
+			processIncomingMessage(srcIdentity, message);
 		}).thenCompose(v -> {
 			boolean showConsole = Boolean
 					.parseBoolean(System.getProperty("com.mijibox.openfin.gateway.showConsole", "false"));
@@ -264,21 +269,44 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 
 	CompletionStage<ProxyListener> addInstanceListener(boolean createProxyListener, ProxyObject proxyObject, String method, String event,
 			OpenFinEventListener listener) {
+		return this.addInstanceActionListener(createProxyListener, proxyObject, method, e->{
+			listener.onEvent(e);
+			return null;
+		}, 1, Json.createValue(event));
+	}
+	
+	CompletionStage<ProxyListener> addInstanceActionListener(boolean createProxyListener, ProxyObject proxyObject, String method,
+			OpenFinActionListener listener, int listenerArgIndex, JsonValue... args) {
 		String iabTopic = this.topicListener + "-" + this.listenerId.getAndIncrement();
 		OpenFinIabMessageListener iabListener = (src, e)->{
-			listener.onEvent((JsonArray) e);
+			JsonValue actionResult = listener.onEvent((JsonArray) e);
+			if (actionResult == null) {
+				actionResult = JsonValue.NULL;
+			}
+			iab.send(src, iabTopic, actionResult);
 		};
 		return this.iab.subscribe(this.gatewayIdentity, iabTopic, iabListener).thenCompose(v -> {
 			JsonObjectBuilder builder = Json.createObjectBuilder()
 					.add(PROXY_RESULT_OBJECT, createProxyListener)
 					.add(IAB_TOPIC, iabTopic)
-					.add(METHOD, method );
-			if (event != null) {
-				builder.add(EVENT, event);
-			}
+					.add(METHOD, method)
+					.add(LINSTENER_ARG_INDEX, listenerArgIndex);
 			if (proxyObject != null) {
 				builder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
 			}
+			if (args != null) {
+				JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
+				for (int i = 0; i < args.length; i++) {
+					if (args[i] == null) {
+						argsBuilder.add(JsonValue.EMPTY_JSON_OBJECT);
+					}
+					else {
+						argsBuilder.add(args[i]);
+					}
+				}
+				builder.add(ARGUMENTS, argsBuilder.build());
+			}
+
 			return this.sendMessage(ACTION_ADD_LISTENER, builder.build());
 		}).thenApply(result -> {
 			if (result.containsKey(PROXY_OBJECT_ID)) {

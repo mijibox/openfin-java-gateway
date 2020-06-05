@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -81,8 +82,8 @@ public class OpenFinGatewayApiTest {
 
 	@AfterClass
 	public static void teardown() throws Exception {
-//		apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
-//		apiGateway = null;
+		apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
+		apiGateway = null;
 	}
 
 	@Test
@@ -184,6 +185,7 @@ public class OpenFinGatewayApiTest {
 			// should have time out, and it's OK.
 		}
 		assertEquals(1, invokeCnt.get());
+		LockSupport.park();
 	}
 
 	@Test
@@ -228,7 +230,6 @@ public class OpenFinGatewayApiTest {
 					// window object
 					ProxyObject win = result.getProxyObject();
 					win.addListener("onn", "closed", e -> {
-
 					}).exceptionally(e -> {
 						logger.debug("expected error", e);
 						errorFuture.complete(null);
@@ -258,7 +259,6 @@ public class OpenFinGatewayApiTest {
 					// window object
 					ProxyObject win = result.getProxyObject();
 					win.addListener("on", "closed", e -> {
-
 					}).thenCompose(listener -> {
 						return win.removeListener("rremoveListener", "closed", listener);
 					})
@@ -359,22 +359,47 @@ public class OpenFinGatewayApiTest {
 				});
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
-	
+
 	@Test
 	public void noArgListener() throws Exception {
 		String channelName = UUID.randomUUID().toString();
 		CompletableFuture<?> listenerInvokedFuture = new CompletableFuture<>();
-		//register noArg listener
-		apiGateway.addListener("fin.InterApplicationBus.Channel.onChannelConnect", e->{
+		// register noArg listener
+		apiGateway.addListener("fin.InterApplicationBus.Channel.onChannelConnect", e -> {
 			System.out.println("channel connected: " + e);
 			listenerInvokedFuture.complete(null);
-		}).thenCompose(v->{
-			//create channel provider
+		}).thenCompose(v -> {
+			// create channel provider
 			return apiGateway.invoke("fin.InterApplicationBus.Channel.create", Json.createValue(channelName));
-		}).thenCompose(r->{
+		}).thenCompose(r -> {
 			return apiGateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
 		});
-		listenerInvokedFuture.get(Long.MAX_VALUE, TimeUnit.SECONDS);
-		
+		listenerInvokedFuture.get(5, TimeUnit.SECONDS);
 	}
+
+	@Test
+	public void actionListener() throws Exception {
+		String channelName = UUID.randomUUID().toString();
+		CompletableFuture<?> resultFuture = new CompletableFuture<>();
+		// register noArg listener
+		apiGateway.invoke(true, "fin.InterApplicationBus.Channel.create", Json.createValue(channelName))
+				.thenCompose(r -> {
+					return r.getProxyObject().addListener(false, "register", e -> {
+						System.out.println("got: " + e.getString(0));
+						return Json.createValue("HoHoHo:" + e.getString(0));
+					}, Json.createValue("MyAction"));
+				})
+				.thenCompose(r -> {
+					return apiGateway.invoke(true, "fin.InterApplicationBus.Channel.connect",
+							Json.createValue(channelName));
+				})
+				.thenCompose(r -> {
+					return r.getProxyObject().invoke("dispatch", Json.createValue("MyAction"), Json.createValue("GGYY")).thenAccept(ar->{
+						System.out.println("dispatch got result: " + ar.getResultAsString());
+						resultFuture.complete(null);
+					});
+				});
+		resultFuture.get(Long.MAX_VALUE, TimeUnit.SECONDS);
+	}
+
 }

@@ -143,14 +143,23 @@ var openFinApiGateway = (function() {
 						}
 						else {
 							let listener = function() {
-								let eventPayload = Object.assign([], arguments);
-								console.debug(iabTopic + ': ' + payload.event + ' listener invoked, arguments.length: ' + arguments.length);
-								fin.InterApplicationBus.send(srcIdentity, iabTopic, eventPayload);
+								return new Promise(resolve=>{
+									let eventPayload = Object.assign([], arguments);
+									console.debug(iabTopic + ': listener invoked, arguments: ', arguments);
+									fin.InterApplicationBus.subscribe(srcIdentity, iabTopic, e =>{
+										console.debug(iabTopic + ': got listener response: ', e);
+										resolve(e);
+									});
+									fin.InterApplicationBus.send(srcIdentity, iabTopic, eventPayload);
+								});
 							};
 							
-							let addListenerArgs = payload.event ? [payload.event, listener] : [listener];
+							let args = payload.args || [];
+							let listenerArgIdx = payload.listenerArgIdx;
+							args.splice(listenerArgIdx, 0, listener);
+							console.debug(args, args);
 
-							Promise.resolve(invokePromise(targetObject, payload.method, ...addListenerArgs)).then(result =>{
+							Promise.resolve(invokePromise(targetObject, payload.method, ...args)).then(result =>{
 								let resultPayload = {messageId, action: 'add-listener-result', payload: {}};
 								if (payload.proxyResult) {
 									resultPayload.payload.proxyObjId = addProxyObject(listener);
