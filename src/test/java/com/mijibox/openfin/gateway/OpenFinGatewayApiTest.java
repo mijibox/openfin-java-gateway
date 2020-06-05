@@ -81,8 +81,8 @@ public class OpenFinGatewayApiTest {
 
 	@AfterClass
 	public static void teardown() throws Exception {
-		apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
-		apiGateway = null;
+//		apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
+//		apiGateway = null;
 	}
 
 	@Test
@@ -358,5 +358,23 @@ public class OpenFinGatewayApiTest {
 					return null;
 				});
 		errorFuture.get(10, TimeUnit.SECONDS);
+	}
+	
+	@Test
+	public void noArgListener() throws Exception {
+		String channelName = UUID.randomUUID().toString();
+		CompletableFuture<?> listenerInvokedFuture = new CompletableFuture<>();
+		//register noArg listener
+		apiGateway.addListener("fin.InterApplicationBus.Channel.onChannelConnect", e->{
+			System.out.println("channel connected: " + e);
+			listenerInvokedFuture.complete(null);
+		}).thenCompose(v->{
+			//create channel provider
+			return apiGateway.invoke("fin.InterApplicationBus.Channel.create", Json.createValue(channelName));
+		}).thenCompose(r->{
+			return apiGateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
+		});
+		listenerInvokedFuture.get(Long.MAX_VALUE, TimeUnit.SECONDS);
+		
 	}
 }

@@ -121,7 +121,7 @@ public class OpenFinConnection implements Listener {
 			inputStream.close();
 		}
 		catch (Exception e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 		}
 		finally {
 			

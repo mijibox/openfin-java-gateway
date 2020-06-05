@@ -147,8 +147,10 @@ var openFinApiGateway = (function() {
 								console.debug(iabTopic + ': ' + payload.event + ' listener invoked, arguments.length: ' + arguments.length);
 								fin.InterApplicationBus.send(srcIdentity, iabTopic, eventPayload);
 							};
+							
+							let addListenerArgs = payload.event ? [payload.event, listener] : [listener];
 
-							Promise.resolve(invokePromise(targetObject, payload.method, payload.event, listener)).then(result =>{
+							Promise.resolve(invokePromise(targetObject, payload.method, ...addListenerArgs)).then(result =>{
 								let resultPayload = {messageId, action: 'add-listener-result', payload: {}};
 								if (payload.proxyResult) {
 									resultPayload.payload.proxyObjId = addProxyObject(listener);

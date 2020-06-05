@@ -243,6 +243,16 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	@Override
+	public CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener) {
+		return this.addInstanceListener(true, null, method, null, listener);
+	}
+
+	@Override
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener) {
+		return this.addInstanceListener(createProxyListener, null, method, null, listener);
+	}
+	
+	@Override
 	public CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener) {
 		return this.addInstanceListener(true, null, method, event, listener);
 	}
@@ -262,8 +272,10 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			JsonObjectBuilder builder = Json.createObjectBuilder()
 					.add(PROXY_RESULT_OBJECT, createProxyListener)
 					.add(IAB_TOPIC, iabTopic)
-					.add(METHOD, method)
-					.add(EVENT, event);
+					.add(METHOD, method );
+			if (event != null) {
+				builder.add(EVENT, event);
+			}
 			if (proxyObject != null) {
 				builder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
 			}

@@ -40,6 +40,10 @@ public interface OpenFinGateway {
 
 	CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args);
 
+	CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener);
+
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener);
+
 	CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener);
 
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener);
