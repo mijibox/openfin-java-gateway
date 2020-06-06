@@ -17,6 +17,8 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
+import java.util.concurrent.CompletionStage;
+
 import javax.json.JsonValue;
 
 public class ProxyListener {
@@ -24,10 +26,12 @@ public class ProxyListener {
 	private OpenFinIabMessageListener listener;
 	private String iabTopic;
 	private ProxyObject invoker;
+	private OpenFinGatewayImpl gateway;
 	
-	ProxyListener(ProxyObject invoker, OpenFinIabMessageListener listener) {
+	ProxyListener(ProxyObject invoker, OpenFinIabMessageListener listener, OpenFinGatewayImpl gateway) {
 		this.invoker = invoker;
 		this.listener = listener;
+		this.gateway = gateway;
 	}
 	
 	void setProxyListenerId(JsonValue proxyListenerId) {
@@ -52,5 +56,9 @@ public class ProxyListener {
 
 	JsonValue getProxyListenerId() {
 		return this.proxyListenerId;
+	}
+
+	public CompletionStage<Void> dispose() {
+		return this.gateway.deleteProxyObject(this.proxyListenerId);
 	}
 }

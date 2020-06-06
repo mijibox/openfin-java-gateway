@@ -33,6 +33,8 @@ public interface OpenFinGateway {
 		default void onClose() {
 		};
 	}
+	
+	String getId();
 
 	CompletionStage<InvokeResult> invoke(String method);
 

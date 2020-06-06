@@ -103,6 +103,11 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		this.iab = connection.getInterAppBus();
 	}
 	
+	@Override
+	public String getId() {
+		return this.gatewayId;
+	}
+	
 	private void processIncomingMessage(JsonValue srcIdentity, JsonValue message) {
 		JsonObject msg = ((JsonObject) message);
 		String action = msg.getString(ACTION);
@@ -331,7 +336,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this.sendMessage(ACTION_ADD_LISTENER, builder.build());
 		}).thenApply(result -> {
 			if (result.containsKey(PROXY_OBJECT_ID)) {
-				ProxyListener proxyListener = new ProxyListener(proxyObject, iabListener);
+				ProxyListener proxyListener = new ProxyListener(proxyObject, iabListener, this);
 				proxyListener.setIabTopic(iabTopic);
 				proxyListener.setProxyListenerId(result.get(PROXY_OBJECT_ID));
 				return proxyListener;
@@ -359,8 +364,8 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 						payloadBuilder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
 					}
 					return this.sendMessage(ACTION_REMOVE_LISTENER, payloadBuilder.build());
-				}).thenAccept(r -> {
-					this.deleteProxyObject(proxyListener.getProxyListenerId());
+				}).thenCompose(r -> {
+					return proxyListener.dispose();
 				});
 	}
 

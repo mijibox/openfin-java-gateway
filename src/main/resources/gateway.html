@@ -120,11 +120,13 @@ var openFinApiGateway = (function() {
 						}
 						else {
 							Promise.resolve(invokePromise(targetObject, payload.method, ...args)).then(result =>{
-								result = result || {};
-								let stringifiedObj = stringify(result);
-								let resultPayloadResultObj = JSON.parse(stringifiedObj);
-								console.debug('invokeMethod: ' + payload.method + ', got result: ' + stringifiedObj);
-								let resultPayload = {messageId, action: 'invoke-result', payload: {result: resultPayloadResultObj}};
+								let resultPayload = {messageId, action: 'invoke-result', payload: {}};
+								if (typeof result !== 'undefined') {
+									let stringifiedObj = stringify(result);
+									let resultPayloadResultObj = JSON.parse(stringifiedObj);
+									console.debug('invokeMethod: ' + payload.method + ', got result: ' + stringifiedObj);
+									resultPayload.payload.result = resultPayloadResultObj
+								}
 								if (payload.proxyResult) {
 									resultPayload.payload.proxyObjId = addProxyObject(result);
 								}

@@ -24,15 +24,15 @@ import javax.json.JsonValue;
 
 public class ProxyObject {
 	JsonValue proxyObjId;
-	OpenFinGatewayImpl apiGateway;
+	OpenFinGatewayImpl gateway;
 	ProxyObject invoker;
 	JsonObject jsonObject;
 
-	ProxyObject(JsonValue proxyObjId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl apiGateway) {
+	ProxyObject(JsonValue proxyObjId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl gateway) {
 		this.proxyObjId = proxyObjId;
 		this.jsonObject = jsonObject;
 		this.invoker = invoker;
-		this.apiGateway = apiGateway;
+		this.gateway = gateway;
 	}
 	
 	public ProxyObject getInvoker() {
@@ -40,15 +40,15 @@ public class ProxyObject {
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method) {
-		return this.apiGateway.invoke(this, method);
+		return this.gateway.invoke(this, method);
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method, JsonValue... args) {
-		return this.apiGateway.invoke(this, method, args);
+		return this.gateway.invoke(this, method, args);
 	}
 
 	public CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args) {
-		return this.apiGateway.invoke(createProxyObject, this, method, args);
+		return this.gateway.invoke(createProxyObject, this, method, args);
 	}
 
 	/**
@@ -70,19 +70,19 @@ public class ProxyObject {
 	}
 	
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener) {
-		return this.apiGateway.addListener(createProxyListener, this, method, event, listener);
+		return this.gateway.addListener(createProxyListener, this, method, event, listener);
 	}
 
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIdx, JsonValue... args) {
-		return this.apiGateway.addListener(createProxyListener, this, method, listener, listenerArgIdx, args);
+		return this.gateway.addListener(createProxyListener, this, method, listener, listenerArgIdx, args);
 	}
 
 	public CompletionStage<Void> removeListener(String method, String event, ProxyListener listener) {
-		return this.apiGateway.removeInstanceListener(this, method, event, listener);
+		return this.gateway.removeInstanceListener(this, method, event, listener);
 	}
 
 	public CompletionStage<Void> dispose() {
-		return this.apiGateway.deleteProxyObject(this.proxyObjId);
+		return this.gateway.deleteProxyObject(this.proxyObjId);
 	}
 
 	public JsonValue getProxyObjectId() {

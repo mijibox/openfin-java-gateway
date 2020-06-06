@@ -164,16 +164,29 @@ public class OpenFinGatewayApiTest {
 			return null;
 		});
 		apiGateway.addListener("fin.System.addListener", "window-created", listener1).thenCompose(proxyListener1 -> {
-			return apiGateway.addListener("fin.System.addListener", "window-created", listener2);
+			return apiGateway.addListener(true, "fin.System.addListener", "window-created", listener2);
 		}).thenCompose(proxyListener2 -> {
 			return apiGateway.removeListener("fin.System.removeListener", "window-created", proxyListener2);
-		}).thenRun(() -> {
-			try {
-				this.invokeWithArgs();
-			}
-			catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+		}).thenCompose(v -> {
+			String appUuid = UUID.randomUUID().toString();
+			JsonObject appOpts = Json.createObjectBuilder()
+					.add("uuid", appUuid)
+					.add("name", appUuid)
+					.add("url", "https://www.google.com")
+					.add("autoShow", true)
+					.build();
+			return apiGateway.invoke(true, "fin.Application.start", appOpts)
+					.thenCompose(result -> {
+						// application object
+						ProxyObject app = result.getProxyObject();
+						return app.invoke(true, "getWindow");
+					})
+					.thenCompose(result -> {
+						// window object
+						ProxyObject win = result.getProxyObject();
+						return win.invoke("close");
+					});
+
 		}).exceptionally(e -> {
 			logger.error("error running test addRemoveListeners", e);
 			return null;
@@ -188,7 +201,6 @@ public class OpenFinGatewayApiTest {
 			// should have time out, and it's OK.
 		}
 		assertEquals(1, invokeCnt.get());
-		LockSupport.park();
 	}
 
 	@Test
