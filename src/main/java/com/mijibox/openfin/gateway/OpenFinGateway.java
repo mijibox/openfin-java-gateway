@@ -48,6 +48,8 @@ public interface OpenFinGateway {
 
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener);
 
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIdx, JsonValue... args);
+
 	CompletionStage<Void> removeListener(String method, String event, ProxyListener listener);
 
 	CompletionStage<OpenFinGateway> close();

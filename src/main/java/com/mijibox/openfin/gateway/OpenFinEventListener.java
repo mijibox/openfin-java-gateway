@@ -18,8 +18,9 @@ limitations under the License.
 package com.mijibox.openfin.gateway;
 
 import javax.json.JsonArray;
+import javax.json.JsonValue;
 
 @FunctionalInterface
 public interface OpenFinEventListener {
-	public void onEvent(JsonArray message);
+	public JsonValue onEvent(JsonArray event);
 }

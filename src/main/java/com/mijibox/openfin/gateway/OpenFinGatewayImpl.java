@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -249,41 +250,61 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 
 	@Override
 	public CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener) {
-		return this.addInstanceListener(true, null, method, null, listener);
+		return this.addListener(false, method, listener);
 	}
 
 	@Override
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener) {
-		return this.addInstanceListener(createProxyListener, null, method, null, listener);
+		return this.addListener(createProxyListener, method, null, listener);
 	}
 	
 	@Override
 	public CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener) {
-		return this.addInstanceListener(true, null, method, event, listener);
+		return this.addListener(false, method, event, listener);
 	}
 	
 	@Override
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener) {
-		return this.addInstanceListener(createProxyListener, null, method, event, listener);
-	}
-
-	CompletionStage<ProxyListener> addInstanceListener(boolean createProxyListener, ProxyObject proxyObject, String method, String event,
-			OpenFinEventListener listener) {
-		return this.addInstanceActionListener(createProxyListener, proxyObject, method, e->{
-			listener.onEvent(e);
-			return null;
-		}, 1, Json.createValue(event));
+		if (event != null) {
+			return this.addListener(createProxyListener, method, listener, 1, Json.createValue(event));
+		}
+		else {
+			return this.addListener(createProxyListener, method, listener, 0);
+		}
 	}
 	
-	CompletionStage<ProxyListener> addInstanceActionListener(boolean createProxyListener, ProxyObject proxyObject, String method,
-			OpenFinActionListener listener, int listenerArgIndex, JsonValue... args) {
+	@Override
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
+		return this.addListener(createProxyListener, null, method, listener, listenerArgIndex, args);
+	}
+
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, ProxyObject proxyObject, String method, String event, OpenFinEventListener listener) {
+		if (event != null) {
+			return this.addListener(createProxyListener, proxyObject, method, listener, 1, Json.createValue(event));
+		}
+		else {
+			return this.addListener(createProxyListener, proxyObject, method, listener, 0);
+		}
+	}
+	
+	
+	/**
+	 * Add event listener or register action callback.
+	 * 
+	 * @param createProxyListener true to create proxyListener so it can be referenced later.
+	 * @param proxyObject if not null, then invoke the instance method of this proxyObject, otherwise invoke the static method.
+	 * @param method method name to add the listener
+	 * @param listener the listener to be invoked when it's invoked in OpenFin runtime
+	 * @param listenerArgIndex listener location in the API method. 
+	 * @param args arguments supplied for the function.
+	 * @return proxyListener object if createProxyListener is set to true and it was successfully created in OpenFin runtime.
+	 */
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, ProxyObject proxyObject, String method,
+			OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
 		String iabTopic = this.topicListener + "-" + this.listenerId.getAndIncrement();
 		OpenFinIabMessageListener iabListener = (src, e)->{
 			JsonValue actionResult = listener.onEvent((JsonArray) e);
-			if (actionResult == null) {
-				actionResult = JsonValue.NULL;
-			}
-			iab.send(src, iabTopic, actionResult);
+			iab.send(src, iabTopic, actionResult == null ? JsonValue.NULL : actionResult);
 		};
 		return this.iab.subscribe(this.gatewayIdentity, iabTopic, iabListener).thenCompose(v -> {
 			JsonObjectBuilder builder = Json.createObjectBuilder()
@@ -354,5 +375,9 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	@Override
 	public OpenFinInterApplicationBus getOpenFinInterApplicationBus() {
 		return this.iab;
+	}
+	
+	public CompletionStage<ProxyListener> addEventHandler(Consumer<? extends JsonValue> action) {
+		return null;
 	}
 }

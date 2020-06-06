@@ -50,17 +50,31 @@ public class ProxyObject {
 	public CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args) {
 		return this.apiGateway.invoke(createProxyObject, this, method, args);
 	}
+
+	/**
+	 * Single argument like ChannelProvider.onConnection(listener);
+	 * @param method method name to add the listener 
+	 * @param listener listener
+	 * @return new CompletionStage that returns null ProxyListener.
+	 */
+	public CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener) {
+		return this.addListener(false, method, listener);
+	}
+
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener) {
+		return this.addListener(createProxyListener, method, null, listener);
+	}
 	
 	public CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener) {
-		return this.apiGateway.addInstanceListener(true, this, method, event, listener);
+		return this.addListener(false, method, event, listener);
 	}
 	
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener) {
-		return this.apiGateway.addInstanceListener(createProxyListener, this, method, event, listener);
+		return this.apiGateway.addListener(createProxyListener, this, method, event, listener);
 	}
 
-	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinActionListener listener, JsonValue... args) {
-		return this.apiGateway.addInstanceActionListener(createProxyListener, this, method, listener, 1, args);
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIdx, JsonValue... args) {
+		return this.apiGateway.addListener(createProxyListener, this, method, listener, listenerArgIdx, args);
 	}
 
 	public CompletionStage<Void> removeListener(String method, String event, ProxyListener listener) {
