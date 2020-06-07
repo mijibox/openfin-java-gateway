@@ -86,27 +86,27 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 		return this.getRvmExecutablePath().thenApply(rvmPath -> {
 			try {
 				//rvm can handle runtime channel version
-				var configPath = this.createStartupConfig(namedPipeName);
+				Path configPath = this.createStartupConfig(namedPipeName);
 				List<String> command = new ArrayList<>();
 				command.add(rvmPath.toAbsolutePath().normalize().toString());
 				for (String s : this.rvmOptions) {
 					command.add(s);
 				}
-				command.add("--config=" + configPath.toAbsolutePath().normalize().toUri().toURL().toString());
+				command.add("--config=" + configPath.toUri().toString());
 				
 				logger.info("start process: {}", command);
 				ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[] {}))
 						.redirectOutput(Redirect.DISCARD)
 						.redirectError(Redirect.DISCARD);
 				pb.start();
-				return pb;
+				return configPath;
 			}
 			catch (Exception e) {
 				logger.error("error launching OpenFinRVM", e);
 				throw new RuntimeException("error launching OpenFinRVM", e);
 			}
-		}).thenCombine(portNumberFuture, (v, port) -> {
-			return new OpenFinConnection(namedPipeName, port);
+		}).thenCombine(portNumberFuture, (configPath, port) -> {
+			return new OpenFinConnection(namedPipeName, port, this.licenseKey, configPath.toUri().toString());
 		});
 	}
 }

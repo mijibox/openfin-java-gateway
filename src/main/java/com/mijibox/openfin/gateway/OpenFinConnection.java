@@ -45,6 +45,7 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
+import javax.json.JsonValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,16 +65,23 @@ public class OpenFinConnection implements Listener {
 	private ExecutorService sendMessageThreadPool;
 	private OpenFinInterApplicationBus interAppBus;
 	private List<Listener> webSocketListeners;
-
 	private boolean connected;
+	private String licenseKey;
+	private String configUrl;
 
 	public OpenFinConnection(int port) {
 		this(UUID.randomUUID().toString(), port);
 	}
-
+	
 	public OpenFinConnection(String uuid, int port) {
+		this(uuid, port, "N/A", "N/A");
+	}
+
+	public OpenFinConnection(String uuid, int port, String licenseKey, String configUrl) {
 		this.uuid = uuid;
 		this.port = port;
+		this.licenseKey = licenseKey;
+		this.configUrl = configUrl;
 		this.receivedMessage = new StringBuilder();
 		this.ackMap = new ConcurrentHashMap<>();
 		this.accumulatedMessage = new CompletableFuture<>();
@@ -150,8 +158,15 @@ public class OpenFinConnection implements Listener {
 				.add("payload", Json.createObjectBuilder()
 						.add("uuid", this.uuid)
 						.add("type", "file-token")
+						.add("licenseKey", this.licenseKey == null ? JsonValue.NULL : Json.createValue(this.licenseKey))
+						.add("configUrl", this.configUrl)
 						.add("client", Json.createObjectBuilder()
 								.add("type", "java")
+								.add("javaVendor", System.getProperty("java.vendor"))
+								.add("javaVersion", System.getProperty("java.version"))
+								.add("osName", System.getProperty("os.name"))
+								.add("osVersion", System.getProperty("os.version"))
+								.add("osArch", System.getProperty("os.arch"))
 								.add("version", getPackageVersion()).build())
 						.build())
 				.build();

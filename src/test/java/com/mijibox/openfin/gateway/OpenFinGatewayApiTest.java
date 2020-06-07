@@ -251,7 +251,7 @@ public class OpenFinGatewayApiTest {
 						return null;
 					});
 					return win.invoke("close");
-				});
+				}).toCompletableFuture().get();
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
 
@@ -284,7 +284,7 @@ public class OpenFinGatewayApiTest {
 								return null;
 							});
 					return win.invoke("close");
-				});
+				}).toCompletableFuture().get();
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
 
@@ -327,7 +327,7 @@ public class OpenFinGatewayApiTest {
 						return null;
 					});
 					return win.invoke("close");
-				});
+				}).toCompletableFuture().get();
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
 
