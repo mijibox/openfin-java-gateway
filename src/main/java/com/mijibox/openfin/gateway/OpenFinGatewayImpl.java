@@ -57,7 +57,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	final static String ACTION = "action";
 	final static String ARGUMENTS = "args";
 	final static String PROXY_LISTENER_ID = "proxyListenerId";
-	final static String PROXY_OBJECT_ID = "proxyObjId";
+	final static String PROXY_ID = "proxyObjId";
 	final static String PROXY_RESULT_OBJECT = "proxyResult";
 	final static String EVENT = "event";
 	final static String IAB_TOPIC = "iabTopic";
@@ -228,7 +228,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 				.add(PROXY_RESULT_OBJECT, createProxyObject)
 				.add(METHOD, method);
 		if (proxyObject != null) {
-			builder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
+			builder.add(PROXY_ID, proxyObject.getProxyId());
 		}
 		if (args != null) {
 			JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
@@ -318,7 +318,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 					.add(METHOD, method)
 					.add(LINSTENER_ARG_INDEX, listenerArgIndex);
 			if (proxyObject != null) {
-				builder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
+				builder.add(PROXY_ID, proxyObject.getProxyId());
 			}
 			if (args != null) {
 				JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
@@ -335,10 +335,8 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 
 			return this.sendMessage(ACTION_ADD_LISTENER, builder.build());
 		}).thenApply(result -> {
-			if (result.containsKey(PROXY_OBJECT_ID)) {
-				ProxyListener proxyListener = new ProxyListener(proxyObject, iabListener, this);
-				proxyListener.setIabTopic(iabTopic);
-				proxyListener.setProxyListenerId(result.get(PROXY_OBJECT_ID));
+			if (result.containsKey(PROXY_ID)) {
+				ProxyListener proxyListener = new ProxyListener(result.get(PROXY_ID), proxyObject, iabTopic, iabListener, this);
 				return proxyListener;
 			}
 			else {
@@ -359,9 +357,9 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 					JsonObjectBuilder payloadBuilder = Json.createObjectBuilder()
 							.add(METHOD, method)
 							.add(EVENT, event)
-							.add(PROXY_LISTENER_ID, proxyListener.getProxyListenerId());
+							.add(PROXY_LISTENER_ID, proxyListener.getProxyId());
 					if (proxyObject != null) {
-						payloadBuilder.add(PROXY_OBJECT_ID, proxyObject.getProxyObjectId());
+						payloadBuilder.add(PROXY_ID, proxyObject.getProxyId());
 					}
 					return this.sendMessage(ACTION_REMOVE_LISTENER, payloadBuilder.build());
 				}).thenCompose(r -> {

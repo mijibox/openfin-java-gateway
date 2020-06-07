@@ -17,27 +17,34 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
+import java.util.concurrent.CompletionStage;
+
 import javax.json.JsonValue;
 
-public class ProxyListener extends AbstractProxy {
-	private OpenFinIabMessageListener listener;
-	private String iabTopic;
+public abstract class AbstractProxy {
+	JsonValue proxyId;
+	OpenFinGatewayImpl gateway;
+	ProxyObject invoker;
 	
-	ProxyListener(JsonValue proxyId, ProxyObject invoker, String iabTopic, OpenFinIabMessageListener listener, OpenFinGatewayImpl gateway) {
-		super(proxyId, invoker, gateway);
-		this.iabTopic = iabTopic;
-		this.listener = listener;
-	}
-	
-	String getIabTopic() {
-		return this.iabTopic;
+	AbstractProxy(JsonValue proxyId, ProxyObject invoker, OpenFinGatewayImpl gateway) {
+		this.proxyId = proxyId;
+		this.invoker = invoker;
+		this.gateway = gateway;
 	}
 	
 	public ProxyObject getInvoker() {
 		return this.invoker;
 	}
 	
-	OpenFinIabMessageListener getListener() {
-		return this.listener;
+	public JsonValue getProxyId() {
+		return this.proxyId;
+	}
+	
+	public OpenFinGateway getGateway() {
+		return this.gateway;
+	}
+	
+	public CompletionStage<Void> dispose() {
+		return this.gateway.deleteProxyObject(this.proxyId);
 	}
 }

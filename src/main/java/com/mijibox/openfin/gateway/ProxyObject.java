@@ -22,21 +22,13 @@ import java.util.concurrent.CompletionStage;
 import javax.json.JsonObject;
 import javax.json.JsonValue;
 
-public class ProxyObject {
-	JsonValue proxyObjId;
-	OpenFinGatewayImpl gateway;
-	ProxyObject invoker;
+public class ProxyObject extends AbstractProxy {
+	
 	JsonObject jsonObject;
 
-	ProxyObject(JsonValue proxyObjId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl gateway) {
-		this.proxyObjId = proxyObjId;
+	ProxyObject(JsonValue proxyId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl gateway) {
+		super(proxyId, invoker, gateway);
 		this.jsonObject = jsonObject;
-		this.invoker = invoker;
-		this.gateway = gateway;
-	}
-	
-	public ProxyObject getInvoker() {
-		return this.invoker;
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method) {
@@ -81,14 +73,6 @@ public class ProxyObject {
 		return this.gateway.removeInstanceListener(this, method, event, listener);
 	}
 
-	public CompletionStage<Void> dispose() {
-		return this.gateway.deleteProxyObject(this.proxyObjId);
-	}
-
-	public JsonValue getProxyObjectId() {
-		return this.proxyObjId;
-	}
-	
 	public JsonObject getProxyJsonObject() {
 		return this.jsonObject;
 	}

@@ -24,11 +24,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonString;
 import javax.json.JsonValue;
 
 import org.junit.AfterClass;

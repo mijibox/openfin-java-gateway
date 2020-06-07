@@ -17,7 +17,7 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
-import static com.mijibox.openfin.gateway.OpenFinGatewayImpl.PROXY_OBJECT_ID;
+import static com.mijibox.openfin.gateway.OpenFinGatewayImpl.PROXY_ID;
 import static com.mijibox.openfin.gateway.OpenFinGatewayImpl.RESULT;
 
 import java.math.BigDecimal;
@@ -30,24 +30,22 @@ import javax.json.JsonString;
 import javax.json.JsonValue;
 
 public class InvokeResult {
-	private JsonValue proxyObjId;
+	private JsonValue proxyId;
 	private JsonValue result;
 	private ProxyObject proxyObject;
-	private OpenFinGatewayImpl apiGateway;
+	private OpenFinGatewayImpl gateway;
 	private ProxyObject invoker;
 
-	InvokeResult(ProxyObject invoker, JsonObject invokeResult, OpenFinGatewayImpl apiGateway) {
+	InvokeResult(ProxyObject invoker, JsonObject invokeResult, OpenFinGatewayImpl gateway) {
 		this.invoker = invoker;
-		this.apiGateway = apiGateway;
-		this.proxyObjId = invokeResult.containsKey(PROXY_OBJECT_ID)
-				? invokeResult.get(PROXY_OBJECT_ID)
-				: null;
-		this.result = invokeResult.containsKey(RESULT) ? invokeResult.get(RESULT) : null;
+		this.gateway = gateway;
+		this.proxyId = invokeResult.get(PROXY_ID);
+		this.result = invokeResult.get(RESULT);
 	}
 
 	public ProxyObject getProxyObject() {
-		if (this.proxyObject == null && this.proxyObjId != null) {
-			this.proxyObject = new ProxyObject(this.proxyObjId, this.getResultAsJsonObject(), this.invoker, this.apiGateway);
+		if (this.proxyObject == null && this.proxyId != null) {
+			this.proxyObject = new ProxyObject(this.proxyId, this.getResultAsJsonObject(), this.invoker, this.gateway);
 		}
 		return this.proxyObject;
 	}
