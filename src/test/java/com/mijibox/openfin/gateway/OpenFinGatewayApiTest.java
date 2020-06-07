@@ -136,10 +136,10 @@ public class OpenFinGatewayApiTest {
 					}).thenCompose(v -> {
 						return app.invoke(true, "getWindow");
 					});
-				}).thenAccept(result -> {
+				}).thenCompose(result -> {
 					// window object
 					ProxyObject win = result.getProxyObject();
-					win.invoke("close");
+					return win.invoke("close");
 				});
 		listenerFuture.get(10, TimeUnit.SECONDS);
 	}
@@ -240,7 +240,7 @@ public class OpenFinGatewayApiTest {
 					// application object
 					ProxyObject app = result.getProxyObject();
 					return app.invoke(true, "getWindow");
-				}).thenAccept(result -> {
+				}).thenCompose(result -> {
 					// window object
 					ProxyObject win = result.getProxyObject();
 					win.addListener("onn", "closed", e -> {
@@ -250,7 +250,7 @@ public class OpenFinGatewayApiTest {
 						errorFuture.complete(null);
 						return null;
 					});
-					win.invoke("close");
+					return win.invoke("close");
 				});
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
@@ -270,7 +270,7 @@ public class OpenFinGatewayApiTest {
 					// application object
 					ProxyObject app = result.getProxyObject();
 					return app.invoke(true, "getWindow");
-				}).thenAccept(result -> {
+				}).thenCompose(result -> {
 					// window object
 					ProxyObject win = result.getProxyObject();
 					win.addListener("on", "closed", e -> {
@@ -283,7 +283,7 @@ public class OpenFinGatewayApiTest {
 								errorFuture.complete(null);
 								return null;
 							});
-					win.invoke("close");
+					return win.invoke("close");
 				});
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
@@ -318,7 +318,7 @@ public class OpenFinGatewayApiTest {
 					// application object
 					ProxyObject app = result.getProxyObject();
 					return app.invoke(true, "getWindow");
-				}).thenAccept(result -> {
+				}).thenCompose(result -> {
 					// window object
 					ProxyObject win = result.getProxyObject();
 					win.invoke("ccc").exceptionally(e -> {
@@ -326,7 +326,7 @@ public class OpenFinGatewayApiTest {
 						errorFuture.complete(null);
 						return null;
 					});
-					win.invoke("close");
+					return win.invoke("close");
 				});
 		errorFuture.get(10, TimeUnit.SECONDS);
 	}
@@ -346,10 +346,10 @@ public class OpenFinGatewayApiTest {
 					// application object
 					ProxyObject app = result.getProxyObject();
 					logger.debug("got app: {}", app);
-					app.invoke(true, "getWindow").thenAccept(r -> {
+					app.invoke(true, "getWindow").thenCompose(r -> {
 						// make sure this method works first.
 						logger.debug("got window: {}", r.getResult());
-						r.getProxyObject().invoke("close");
+						return r.getProxyObject().invoke("close");
 
 					}).thenCompose(v -> {
 						return app.dispose();

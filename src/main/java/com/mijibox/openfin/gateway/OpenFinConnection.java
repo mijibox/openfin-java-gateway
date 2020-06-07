@@ -61,6 +61,7 @@ public class OpenFinConnection implements Listener {
 	private String uuid;
 	private CompletableFuture<OpenFinConnection> authFuture;
 	private ExecutorService processMessageThreadPool;
+	private ExecutorService sendMessageThreadPool;
 	private OpenFinInterApplicationBus interAppBus;
 	private List<Listener> webSocketListeners;
 
@@ -79,6 +80,7 @@ public class OpenFinConnection implements Listener {
 		this.messageId = new AtomicInteger(0);
 		this.authFuture = new CompletableFuture<>();
 		this.processMessageThreadPool = Executors.newFixedThreadPool(10);
+		this.sendMessageThreadPool = Executors.newFixedThreadPool(10);
 		this.interAppBus = new OpenFinInterApplicationBus(this);
 		this.webSocketListeners = new ArrayList<>();
 	}
@@ -206,33 +208,39 @@ public class OpenFinConnection implements Listener {
 		this.processMessageThreadPool.shutdown();
 	}
 
-	public synchronized CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
-		if (this.connected) {
-			int msgId = this.messageId.getAndIncrement();
-			CompletableFuture<JsonObject> ackFuture = new CompletableFuture<>();
-			this.ackMap.put(msgId, ackFuture);
-			JsonObjectBuilder json = Json.createObjectBuilder();
-			JsonObject msgJson = json.add("action", action)
-					.add("messageId", msgId)
-					.add("payload", payload).build();
-			String msg = msgJson.toString();
-			logger.debug("sending: {}", msg);
-
-			try {
-				this.webSocket.sendText(msg, true)
-						.exceptionally(e -> {
-							logger.error("error sending message over websocket", e);
-							return null;
-						}).toCompletableFuture().get();
+	public CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
+		return CompletableFuture.supplyAsync(()->{
+			return null;
+		}, this.sendMessageThreadPool).thenCompose(v->{
+			if (this.connected) {
+				int msgId = this.messageId.getAndIncrement();
+				CompletableFuture<JsonObject> ackFuture = new CompletableFuture<>();
+				this.ackMap.put(msgId, ackFuture);
+				JsonObjectBuilder json = Json.createObjectBuilder();
+				JsonObject msgJson = json.add("action", action)
+						.add("messageId", msgId)
+						.add("payload", payload).build();
+				String msg = msgJson.toString();
+				logger.debug("sending: {}", msg);
+				this.sendWebSocketMessage(msg);
+				return ackFuture;
 			}
-			catch (InterruptedException | ExecutionException e) {
-				e.printStackTrace();
+			else {
+				throw new RuntimeException("not connected");
 			}
-
-			return ackFuture;
+		});
+	}
+	
+	private synchronized void sendWebSocketMessage(String msg) {
+		try {
+			this.webSocket.sendText(msg, true)
+					.exceptionally(e -> {
+						logger.error("error sending message over websocket", e);
+						return null;
+					}).toCompletableFuture().get();
 		}
-		else {
-			throw new RuntimeException("not connected");
+		catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
 		}
 	}
 
