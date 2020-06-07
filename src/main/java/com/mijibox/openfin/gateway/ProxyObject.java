@@ -24,11 +24,11 @@ import javax.json.JsonValue;
 
 public class ProxyObject extends AbstractProxy {
 	
-	JsonObject jsonObject;
+	JsonObject resultJson;
 
 	ProxyObject(JsonValue proxyId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl gateway) {
 		super(proxyId, invoker, gateway);
-		this.jsonObject = jsonObject;
+		this.resultJson = jsonObject;
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method) {
@@ -73,7 +73,7 @@ public class ProxyObject extends AbstractProxy {
 		return this.gateway.removeInstanceListener(this, method, event, listener);
 	}
 
-	public JsonObject getProxyJsonObject() {
-		return this.jsonObject;
+	public JsonObject getResultJson() {
+		return this.resultJson;
 	}
 }

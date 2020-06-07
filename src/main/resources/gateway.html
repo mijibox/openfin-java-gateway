@@ -127,6 +127,9 @@ var openFinApiGateway = (function() {
 									console.debug('invokeMethod: ' + payload.method + ', got result: ' + stringifiedObj);
 									resultPayload.payload.result = resultPayloadResultObj
 								}
+								else {
+									console.debug('invokeMethod: ' + payload.method + ', got result: ' + result);
+								}
 								if (payload.proxyResult) {
 									resultPayload.payload.proxyObjId = addProxyObject(result);
 								}
