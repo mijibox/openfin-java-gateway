@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -291,7 +292,7 @@ public class OpenFinGatewayApiTest {
 	@Test
 	public void removeListenerError() throws Exception {
 		CompletableFuture<?> errorFuture = new CompletableFuture<>();
-		apiGateway.addListener("fin.System.addListener", "application-closed", e -> {
+		apiGateway.addListener(true, "fin.System.addListener", "application-closed", e -> {
 			return null;
 		}).thenCompose(listener -> {
 			return apiGateway.removeListener("fin.System.rremoveListener", "application-closed", listener);
@@ -436,6 +437,47 @@ public class OpenFinGatewayApiTest {
 							});
 				});
 		resultFuture.get(5, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void useApplicationGateway() throws Exception {
+		CompletableFuture<ProxyObject> errorFuture = new CompletableFuture<>();
+		String appUuid = UUID.randomUUID().toString();
+		JsonObject appOpts = Json.createObjectBuilder()
+				.add("uuid", appUuid)
+				.add("url", "https://www.google.com")
+				.add("preloadScripts", Json.createArrayBuilder()
+						.add(Json.createObjectBuilder()
+								.add("url", apiGateway.getGatewayPreloadScriptUrl())))
+				.build();
+
+		JsonObject winOpts = Json.createObjectBuilder()
+				.add("uuid", appUuid)
+				.add("name", "win1")
+				.add("url", "https://www.apple.com")
+				.build();
+
+		apiGateway.invoke(true, "fin.Application.start", appOpts)
+				.thenAccept(result -> {
+					ProxyObject appObj = result.getProxyObject();
+					apiGateway.invoke("fin.Window.create", winOpts).exceptionally(e -> {
+						logger.debug("expected error", e);
+						errorFuture.complete(appObj);
+						return null;
+					});
+				});
+		ProxyObject appObj = errorFuture.get(10, TimeUnit.SECONDS);
+
+		// now use application gateway
+		apiGateway.getApplicationGateway(appUuid).thenCompose(appGateway->{
+			return appGateway.invoke(true, "fin.Window.create", winOpts)
+					.thenCompose(r->{
+				return r.getProxyObject().invoke("close");
+			}).thenCompose(v->{
+				return appObj.invoke("quit", JsonValue.TRUE);
+			});
+		}).toCompletableFuture().get(10, TimeUnit.SECONDS);
+
 	}
 
 }

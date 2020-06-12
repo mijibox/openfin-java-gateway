@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -80,19 +81,21 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 
 	private OpenFinGatewayListener gatewayListener;
 
+	private Path gatewayScriptPath;
+
 	public static CompletionStage<OpenFinGateway> newInstance(OpenFinConnection connection,
 			OpenFinGatewayListener listener) {
-		return new OpenFinGatewayImpl(connection, listener)
+		return new OpenFinGatewayImpl(null, connection, listener)
 				.createGatewayApplication()
 				.thenCompose(gateway -> {
 					return gateway.init();
 				});
 	}
 
-	private OpenFinGatewayImpl(OpenFinConnection connection, OpenFinGatewayListener listener) {
+	private OpenFinGatewayImpl(String appUuid, OpenFinConnection connection, OpenFinGatewayListener listener) {
 		this.connection = connection;
 		this.gatewayListener = listener;
-		this.gatewayId = connection.getUuid() + "-gateway";
+		this.gatewayId = (appUuid == null ? connection.getUuid() + "-gateway" : appUuid);
 		this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId)
 				.build();
 		this.messageId = new AtomicInteger(0);
@@ -120,7 +123,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		}
 	}
 
-	private CompletionStage<OpenFinGateway> init() {
+	protected CompletionStage<OpenFinGateway> init() {
 		return this.iab.subscribe(this.gatewayIdentity, this.topicExec, (srcIdentity, message) -> {
 			processIncomingMessage(srcIdentity, message);
 		}).thenCompose(v -> {
@@ -149,20 +152,31 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this;
 		});
 	}
+	
+	@Override
+	public String getGatewayPreloadScriptUrl() {
+		return this.gatewayScriptPath.toUri().toString();
+	}
 
 	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication() {
 		try {
 			logger.debug("createGatewayApplication: {}", gatewayId);
-			URL gatewayHtml = this.getClass().getClassLoader().getResource("gateway.html");
+			URL gatewayHtml = this.getClass().getClassLoader().getResource("gateway.js");
 			// copy the content to temp directory
 			ReadableByteChannel readableByteChannel = Channels.newChannel(gatewayHtml.openStream());
-			Path tempFile = Files.createTempFile(null, ".html");
-			FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile());
+			this.gatewayScriptPath = Files.createTempFile(null, ".js");
+			FileOutputStream fileOutputStream = new FileOutputStream(this.gatewayScriptPath.toFile());
 			long size = fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
 			fileOutputStream.close();
-			logger.debug("gateway app html: {}, size: {}", tempFile, size);
+			logger.debug("gateway.js: {}, size: {}", this.gatewayScriptPath, size);
+			
 			JsonObject appOpts = Json.createObjectBuilder(this.gatewayIdentity)
-					.add("url", tempFile.toUri().toString())
+					.add("url", "about:blank")
+					.add("preloadScripts", Json.createArrayBuilder()
+							.add(Json.createObjectBuilder()
+									.add("url", this.gatewayScriptPath.toUri().toString())
+									.build())
+							.build())
 					.add("autoShow", false).build();
 
 			return this.connection.sendMessage("create-application", appOpts).thenComposeAsync(ack -> {
@@ -234,7 +248,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
 			for (int i = 0; i < args.length; i++) {
 				if (args[i] == null) {
-					argsBuilder.add(JsonValue.EMPTY_JSON_OBJECT);
+					argsBuilder.add(JsonValue.NULL);
 				}
 				else {
 					argsBuilder.add(args[i]);
@@ -254,8 +268,10 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	@Override
-	public CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener) {
-		return this.addListener(false, method, listener);
+	public CompletionStage<Void> addListener(String method, OpenFinEventListener listener) {
+		return this.addListener(false, method, listener).thenAccept(r->{
+			
+		});
 	}
 
 	@Override
@@ -264,8 +280,10 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 	
 	@Override
-	public CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener) {
-		return this.addListener(false, method, event, listener);
+	public CompletionStage<Void> addListener(String method, String event, OpenFinEventListener listener) {
+		return this.addListener(false, method, event, listener).thenAccept(r->{
+			
+		});
 	}
 	
 	@Override
@@ -382,5 +400,15 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	
 	public CompletionStage<ProxyListener> addEventHandler(Consumer<? extends JsonValue> action) {
 		return null;
+	}
+	
+	@Override
+	public CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid) {
+		return (new OpenFinGatewayImpl(appUuid, this.connection, null) { 
+			@Override
+			public CompletionStage<OpenFinGateway> close() {
+				throw new RuntimeException("invalid operation, unable to close application gateway");
+			}
+		}).init();
 	}
 }

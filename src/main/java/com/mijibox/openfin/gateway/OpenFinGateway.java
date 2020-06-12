@@ -17,8 +17,10 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
+import java.nio.file.Path;
 import java.util.concurrent.CompletionStage;
 
+import javax.json.JsonObject;
 import javax.json.JsonValue;
 
 public interface OpenFinGateway {
@@ -35,6 +37,8 @@ public interface OpenFinGateway {
 	}
 	
 	String getId();
+	
+	String getGatewayPreloadScriptUrl();
 
 	CompletionStage<InvokeResult> invoke(String method);
 
@@ -42,11 +46,11 @@ public interface OpenFinGateway {
 
 	CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args);
 
-	CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener);
+	CompletionStage<Void> addListener(String method, OpenFinEventListener listener);
 
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener);
 
-	CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener);
+	CompletionStage<Void> addListener(String method, String event, OpenFinEventListener listener);
 
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener);
 
@@ -57,4 +61,6 @@ public interface OpenFinGateway {
 	CompletionStage<OpenFinGateway> close();
 
 	OpenFinInterApplicationBus getOpenFinInterApplicationBus();
+	
+	CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid);
 }
