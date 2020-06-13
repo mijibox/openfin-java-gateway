@@ -18,14 +18,16 @@ limitations under the License.
 package com.mijibox.openfin.gateway;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-
-import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
 
 public class OpenFinRuntimeLauncherBuilder extends AbstractLauncherBuilder {
 	
 	private Path runtimeDirectory;
 	
+	public OpenFinRuntimeLauncherBuilder() {
+		
+	}
 
 	public OpenFinRuntimeLauncherBuilder runtimeDirectory(Path runtimeDirectory) {
 		this.runtimeDirectory = runtimeDirectory;
@@ -40,12 +42,9 @@ public class OpenFinRuntimeLauncherBuilder extends AbstractLauncherBuilder {
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> open(OpenFinGatewayListener listener) {
-		OpenFinRuntimeLauncher launcher = new OpenFinRuntimeLauncher(this);
-		return launcher.launch().thenCompose(connection ->{
-			return connection.connect();
-		}).thenCompose(connection->{
-			return OpenFinGatewayImpl.newInstance(this, connection, listener);
-		});
+	public CompletionStage<OpenFinLauncher> build() {
+		return CompletableFuture.supplyAsync(()->{
+			return new OpenFinRuntimeLauncher(this);
+		}); 
 	}
 }

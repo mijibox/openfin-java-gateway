@@ -59,55 +59,67 @@ public class OpenFinGatewayTest {
 
 	@Test
 	public void gatewayListenerOnOpen() throws Exception {
-		OpenFinRuntimeLauncherBuilder builder = new OpenFinRuntimeLauncherBuilder();
-		builder.runtimeVersion(this.runtimeVersion);
-//		OpenFinLauncherBuilder builder = OpenFinLauncher.newOpenFinLauncherBuilder();
+		CompletableFuture<?> listenerFuture = new CompletableFuture<>();
+		OpenFinGatewayLauncher.newOpenFinGatewayLauncher()
+				.launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+						.runtimeVersion(this.runtimeVersion)
+						.addRuntimeOption("--v=1")
+						.addRuntimeOption("--no-sandbox"))
+				.gatewayListener(new OpenFinGatewayListener() {
+					@Override
+					public void onOpen(OpenFinGateway gateway) {
+						listenerFuture.complete(null);
+					}
 
-		CompletableFuture<OpenFinGateway> listenerFuture = new CompletableFuture<>();
-		builder.open(new OpenFinGatewayListener() {
+					@Override
+					public void onError() {
+					}
 
-			@Override
-			public void onOpen(OpenFinGateway gateway) {
-				listenerFuture.complete(gateway);
-			}
-
-			@Override
-			public void onError() {
-			}
-
-			@Override
-			public void onClose() {
-			}
-		}).thenAccept(gateway -> {
-			gateway.close();
-		});
+					@Override
+					public void onClose() {
+					}
+				})
+				.open().thenAccept(gateway -> {
+					gateway.close();
+				})
+				.exceptionally(e -> {
+					e.printStackTrace();
+					return null;
+				})
+				.toCompletableFuture().get(120, TimeUnit.SECONDS);
 		listenerFuture.get(20, TimeUnit.SECONDS);
 	}
 
 	@Test
 	public void gatewayListenerOnClose() throws Exception {
-//		OpenFinRuntimeLauncherBuilder builder = new OpenFinRuntimeLauncherBuilder();
-//		builder.runtimeVersion(this.runtimeVersion);
-		OpenFinLauncherBuilder builder = OpenFinLauncher.newOpenFinLauncherBuilder();
+		CompletableFuture<?> listenerFuture = new CompletableFuture<>();
+		OpenFinGatewayLauncher.newOpenFinGatewayLauncher()
+				.launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+						.runtimeVersion(this.runtimeVersion)
+						.addRuntimeOption("--v=1")
+						.addRuntimeOption("--no-sandbox"))
+				.gatewayListener(new OpenFinGatewayListener() {
+					@Override
+					public void onOpen(OpenFinGateway gateway) {
+					}
 
-		CompletableFuture<OpenFinGateway> listenerFuture = new CompletableFuture<>();
-		builder.open(new OpenFinGatewayListener() {
+					@Override
+					public void onError() {
+					}
 
-			@Override
-			public void onOpen(OpenFinGateway gateway) {
-			}
-
-			@Override
-			public void onError() {
-			}
-
-			@Override
-			public void onClose() {
-				listenerFuture.complete(null);
-			}
-		}).thenAccept(gateway -> {
-			gateway.close();
-		});
+					@Override
+					public void onClose() {
+						listenerFuture.complete(null);
+					}
+				})
+				.open().thenAccept(gateway -> {
+					gateway.close();
+				})
+				.exceptionally(e -> {
+					e.printStackTrace();
+					return null;
+				})
+				.toCompletableFuture().get(120, TimeUnit.SECONDS);
 		listenerFuture.get(20, TimeUnit.SECONDS);
 	}
 
@@ -115,11 +127,10 @@ public class OpenFinGatewayTest {
 	@Test
 	public void showConsole() throws Exception {
 		System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
-		OpenFinRuntimeLauncherBuilder builder = new OpenFinRuntimeLauncherBuilder();
-//		builder.runtimeVersion(this.runtimeVersion);
-//		OpenFinGateway apiGateway = OpenFinLauncher.newOpenFinLauncherBuilder()
-		builder.addRuntimeOption("--v=1")
-				.open(null).toCompletableFuture().get();
+		OpenFinGatewayLauncher
+				.newOpenFinGatewayLauncher()
+				.open()
+				.toCompletableFuture().get(10, TimeUnit.SECONDS);
 		Thread.sleep(Long.MAX_VALUE);
 	}
 
@@ -135,10 +146,10 @@ public class OpenFinGatewayTest {
 				.add("autoShow", true)
 				.build();
 		System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
-		OpenFinLauncherBuilder builder = OpenFinLauncher.newOpenFinLauncherBuilder();
-		OpenFinGateway gateway = builder.addRuntimeOption("--v=1")
-				.startupApp(startupApp)
-				.open(null).toCompletableFuture().get();
+		OpenFinGateway gateway = OpenFinGatewayLauncher
+				.newOpenFinGatewayLauncher()
+				.open(startupApp)
+				.toCompletableFuture().get(10, TimeUnit.SECONDS);
 
 		gateway.invoke("fin.System.readRegistryValue", Json.createValue("HKEY_LOCAL_MACHINE"),
 				Json.createValue("HARDWARE\\DESCRIPTION\\System"), Json.createValue("BootArchitecture"))

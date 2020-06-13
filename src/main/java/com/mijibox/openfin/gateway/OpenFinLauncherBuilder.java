@@ -20,10 +20,6 @@ package com.mijibox.openfin.gateway;
 import java.nio.file.Path;
 import java.util.concurrent.CompletionStage;
 
-import javax.json.JsonObject;
-
-import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
-
 public interface OpenFinLauncherBuilder {
 	/**
 	 * where to download OpenFin assets, default to "https://cdn.openfin.co"
@@ -59,25 +55,11 @@ public interface OpenFinLauncherBuilder {
 	 * @return
 	 */
 	OpenFinLauncherBuilder openFinDirectory(Path openFinDirectory);
-
+	
 	/**
-	 * When opening the OpenFin Java Gateway, replace default application options with this one. 
-	 * @param startupAppOptions
+	 * Build the launcher
 	 * @return
 	 */
-	OpenFinLauncherBuilder startupApp(JsonObject startupAppOptions);
-
-	/**
-	 * When not using default application options, prepend gateway javascript to preloadScripts. 
-	 * @param injectGatewayScript
-	 * @return
-	 */
-	OpenFinLauncherBuilder injectGatewayScript(boolean injectGatewayScript);
-
-	/**
-	 * Open the OpenFin Java Gateway
-	 * @param listener
-	 * @return
-	 */
-	CompletionStage<OpenFinGateway> open(OpenFinGatewayListener listener);
+	CompletionStage<OpenFinLauncher> build();
+	
 }

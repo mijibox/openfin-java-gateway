@@ -34,13 +34,11 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	private final static Logger logger = LoggerFactory.getLogger(OpenFinRvmLauncher.class);
 	private String rvmVersion;
 	private Path rvmInstallDirectory;
-	private String rvmExecutableName;
 	private List<String> rvmOptions;
 
 	public OpenFinRvmLauncher(OpenFinRvmLauncherBuilder builder) {
 		super(builder);
 		this.rvmInstallDirectory = builder.getOpenFinDirectory();
-		this.rvmExecutableName = builder.getRvmExecutableName();
 		this.rvmVersion = builder.getRvmVersion();
 		this.rvmOptions = builder.getRvmOptions();
 		if (this.runtimeVersion == null) {
@@ -49,7 +47,7 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	}
 
 	private CompletionStage<Path> getRvmExecutablePath() {
-		Path rvmPath = this.rvmInstallDirectory.resolve(this.rvmExecutableName);
+		Path rvmPath = this.rvmInstallDirectory.resolve("OpenFinRVM.exe");
 		if (!Files.exists(rvmPath, LinkOption.NOFOLLOW_LINKS)) {
 			return CompletableFuture.supplyAsync(() -> {
 				logger.debug("{} not available.", rvmPath);

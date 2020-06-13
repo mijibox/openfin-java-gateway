@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -55,39 +54,39 @@ public class OpenFinGatewayApiTest {
 		};
 	}
 
-	private static OpenFinGateway apiGateway;
+	private static OpenFinGateway gateway;
 	private String runtimeVersion;
 
 	public OpenFinGatewayApiTest(String runtimeVersion) throws Exception {
-		if (apiGateway != null) {
-			apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
-			apiGateway = null;
+		if (gateway != null) {
+			gateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
+			gateway = null;
 		}
 		System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
 		this.runtimeVersion = runtimeVersion;
 		logger.debug("runtime version: {}", this.runtimeVersion);
-		apiGateway = OpenFinLauncher.newOpenFinLauncherBuilder()
-				.runtimeVersion(this.runtimeVersion)
-				.addRuntimeOption("--v=1")
-				.addRuntimeOption("--no-sandbox")
-				.open(null)
+		gateway = OpenFinGatewayLauncher.newOpenFinGatewayLauncher()
+				.launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+						.runtimeVersion(this.runtimeVersion)
+						.addRuntimeOption("--v=1")
+						.addRuntimeOption("--no-sandbox"))
+				.open()
 				.exceptionally(e -> {
 					e.printStackTrace();
 					return null;
 				})
 				.toCompletableFuture().get(120, TimeUnit.SECONDS);
-
 	}
 
 	@AfterClass
 	public static void teardown() throws Exception {
-		apiGateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
-		apiGateway = null;
+		gateway.close().toCompletableFuture().get(20, TimeUnit.SECONDS);
+		gateway = null;
 	}
 
 	@Test
 	public void invokeNoArg() throws Exception {
-		String invokeResult = apiGateway.invoke("fin.System.getVersion").thenApply(r -> {
+		String invokeResult = gateway.invoke("fin.System.getVersion").thenApply(r -> {
 			return r.getResultAsString();
 		}).toCompletableFuture().get(20, TimeUnit.SECONDS);
 		logger.debug("fin.System.getVersion returns: {}", invokeResult);
@@ -102,7 +101,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenCompose(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -126,7 +125,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenCompose(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -161,10 +160,10 @@ public class OpenFinGatewayApiTest {
 			listenerFuture2.complete(null);
 			return null;
 		});
-		apiGateway.addListener("fin.System.addListener", "window-created", listener1).thenCompose(proxyListener1 -> {
-			return apiGateway.addListener(true, "fin.System.addListener", "window-created", listener2);
+		gateway.addListener("fin.System.addListener", "window-created", listener1).thenCompose(proxyListener1 -> {
+			return gateway.addListener(true, "fin.System.addListener", "window-created", listener2);
 		}).thenCompose(proxyListener2 -> {
-			return apiGateway.removeListener("fin.System.removeListener", "window-created", proxyListener2);
+			return gateway.removeListener("fin.System.removeListener", "window-created", proxyListener2);
 		}).thenCompose(v -> {
 			String appUuid = UUID.randomUUID().toString();
 			JsonObject appOpts = Json.createObjectBuilder()
@@ -173,7 +172,7 @@ public class OpenFinGatewayApiTest {
 					.add("url", "https://www.google.com")
 					.add("autoShow", true)
 					.build();
-			return apiGateway.invoke(true, "fin.Application.start", appOpts)
+			return gateway.invoke(true, "fin.Application.start", appOpts)
 					.thenCompose(result -> {
 						// application object
 						ProxyObject app = result.getProxyObject();
@@ -204,7 +203,7 @@ public class OpenFinGatewayApiTest {
 	@Test
 	public void invokeError() throws Exception {
 		CompletableFuture<?> errorFuture = new CompletableFuture<>();
-		apiGateway.invoke("fin.System.getVversion").exceptionally(e -> {
+		gateway.invoke("fin.System.getVversion").exceptionally(e -> {
 			logger.debug("expected error", e);
 			errorFuture.complete(null);
 			return null;
@@ -215,7 +214,7 @@ public class OpenFinGatewayApiTest {
 	@Test
 	public void addListenerError() throws Exception {
 		CompletableFuture<?> errorFuture = new CompletableFuture<>();
-		apiGateway.addListener("fin.System.dddListener", "application-closed", e -> {
+		gateway.addListener("fin.System.dddListener", "application-closed", e -> {
 			return null;
 		}).exceptionally(e -> {
 			logger.debug("expected error", e);
@@ -235,7 +234,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenCompose(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -265,7 +264,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenCompose(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -291,10 +290,10 @@ public class OpenFinGatewayApiTest {
 	@Test
 	public void removeListenerError() throws Exception {
 		CompletableFuture<?> errorFuture = new CompletableFuture<>();
-		apiGateway.addListener(true, "fin.System.addListener", "application-closed", e -> {
+		gateway.addListener(true, "fin.System.addListener", "application-closed", e -> {
 			return null;
 		}).thenCompose(listener -> {
-			return apiGateway.removeListener("fin.System.rremoveListener", "application-closed", listener);
+			return gateway.removeListener("fin.System.rremoveListener", "application-closed", listener);
 		}).exceptionally(e -> {
 			logger.debug("expected error", e);
 			errorFuture.complete(null);
@@ -313,7 +312,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenCompose(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -341,7 +340,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenAccept(result -> {
 					// application object
 					ProxyObject app = result.getProxyObject();
@@ -367,7 +366,7 @@ public class OpenFinGatewayApiTest {
 	@Test
 	public void getApiError() throws Exception {
 		CompletableFuture<?> errorFuture = new CompletableFuture<>();
-		apiGateway.invoke(true, "fin.Application.wrap", JsonValue.EMPTY_JSON_OBJECT)
+		gateway.invoke(true, "fin.Application.wrap", JsonValue.EMPTY_JSON_OBJECT)
 				.thenAccept(result -> {
 				}).exceptionally(e -> {
 					logger.debug("expected error", e);
@@ -382,15 +381,15 @@ public class OpenFinGatewayApiTest {
 		String channelName = UUID.randomUUID().toString();
 		CompletableFuture<?> listenerInvokedFuture = new CompletableFuture<>();
 		// register noArg listener
-		apiGateway.addListener("fin.InterApplicationBus.Channel.onChannelConnect", e -> {
+		gateway.addListener("fin.InterApplicationBus.Channel.onChannelConnect", e -> {
 			System.out.println("channel connected: " + e);
 			listenerInvokedFuture.complete(null);
 			return null;
 		}).thenCompose(v -> {
 			// create channel provider
-			return apiGateway.invoke("fin.InterApplicationBus.Channel.create", Json.createValue(channelName));
+			return gateway.invoke("fin.InterApplicationBus.Channel.create", Json.createValue(channelName));
 		}).thenCompose(r -> {
-			return apiGateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
+			return gateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
 		});
 		listenerInvokedFuture.get(5, TimeUnit.SECONDS);
 	}
@@ -400,7 +399,7 @@ public class OpenFinGatewayApiTest {
 		String channelName = UUID.randomUUID().toString();
 		CompletableFuture<?> listenerInvokedFuture = new CompletableFuture<>();
 		// create channel provider
-		apiGateway.invoke(true, "fin.InterApplicationBus.Channel.create", Json.createValue(channelName))
+		gateway.invoke(true, "fin.InterApplicationBus.Channel.create", Json.createValue(channelName))
 				.thenCompose(r -> {
 					// register noArg listener
 					return r.getProxyObject().addListener("onConnection", e -> {
@@ -408,7 +407,7 @@ public class OpenFinGatewayApiTest {
 						return null;
 					});
 				}).thenCompose(r -> {
-					return apiGateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
+					return gateway.invoke("fin.InterApplicationBus.Channel.connect", Json.createValue(channelName));
 				});
 		listenerInvokedFuture.get(5, TimeUnit.SECONDS);
 	}
@@ -419,14 +418,14 @@ public class OpenFinGatewayApiTest {
 		String actionName = "MyChannelAction";
 		CompletableFuture<?> resultFuture = new CompletableFuture<>();
 		// register noArg listener
-		apiGateway.invoke(true, "fin.InterApplicationBus.Channel.create", Json.createValue(channelName))
+		gateway.invoke(true, "fin.InterApplicationBus.Channel.create", Json.createValue(channelName))
 				.thenCompose(r -> {
 					return r.getProxyObject().addListener("register", actionName, e -> {
 						return Json.createValue("HoHoHo:" + e.getString(0));
 					});
 				})
 				.thenCompose(r -> {
-					return apiGateway.invoke(true, "fin.InterApplicationBus.Channel.connect",
+					return gateway.invoke(true, "fin.InterApplicationBus.Channel.connect",
 							Json.createValue(channelName));
 				})
 				.thenCompose(r -> {
@@ -447,7 +446,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("preloadScripts", Json.createArrayBuilder()
 						.add(Json.createObjectBuilder()
-								.add("url", apiGateway.getGatewayScriptUrl())))
+								.add("url", gateway.getGatewayScriptUrl())))
 				.build();
 
 		JsonObject winOpts = Json.createObjectBuilder()
@@ -456,10 +455,10 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.apple.com")
 				.build();
 
-		apiGateway.invoke(true, "fin.Application.start", appOpts)
+		gateway.invoke(true, "fin.Application.start", appOpts)
 				.thenAccept(result -> {
 					ProxyObject appObj = result.getProxyObject();
-					apiGateway.invoke("fin.Window.create", winOpts).exceptionally(e -> {
+					gateway.invoke("fin.Window.create", winOpts).exceptionally(e -> {
 						logger.debug("expected error", e);
 						errorFuture.complete(appObj);
 						return null;
@@ -468,13 +467,13 @@ public class OpenFinGatewayApiTest {
 		ProxyObject appObj = errorFuture.get(10, TimeUnit.SECONDS);
 
 		// now use application gateway
-		apiGateway.getApplicationGateway(appUuid).thenCompose(appGateway->{
+		gateway.getApplicationGateway(appUuid).thenCompose(appGateway -> {
 			return appGateway.invoke(true, "fin.Window.create", winOpts)
-					.thenCompose(r->{
-				return r.getProxyObject().invoke("close");
-			}).thenCompose(v->{
-				return appObj.invoke("quit", JsonValue.TRUE);
-			});
+					.thenCompose(r -> {
+						return r.getProxyObject().invoke("close");
+					}).thenCompose(v -> {
+						return appObj.invoke("quit", JsonValue.TRUE);
+					});
 		}).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
 	}

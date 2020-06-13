@@ -17,10 +17,8 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
-import java.nio.file.Path;
 import java.util.concurrent.CompletionStage;
 
-import javax.json.JsonObject;
 import javax.json.JsonValue;
 
 public interface OpenFinGateway {

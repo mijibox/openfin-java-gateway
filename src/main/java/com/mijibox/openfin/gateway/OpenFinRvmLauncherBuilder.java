@@ -28,29 +28,21 @@ import java.util.concurrent.CompletionStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
-
 public class OpenFinRvmLauncherBuilder extends AbstractLauncherBuilder {
 	private final static Logger logger = LoggerFactory.getLogger(OpenFinRvmLauncherBuilder.class);
 
 	private String rvmVersion;
 	private List<String> rvmOptions;
 
-	OpenFinRvmLauncherBuilder() {
+	public OpenFinRvmLauncherBuilder() {
 		this.rvmVersion = "latest";
 		this.rvmOptions = new ArrayList<>();
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> open(OpenFinGatewayListener listener) {
+	public CompletionStage<OpenFinLauncher> build() {
 		return CompletableFuture.supplyAsync(() -> {
 			return new OpenFinRvmLauncher(this);
-		}).thenCompose(rvm -> {
-			return rvm.launch();
-		}).thenCompose(connection -> {
-			return connection.connect();
-		}).thenCompose(connection -> {
-			return OpenFinGatewayImpl.newInstance(this, connection, listener);
 		});
 	}
 
@@ -65,10 +57,6 @@ public class OpenFinRvmLauncherBuilder extends AbstractLauncherBuilder {
 
 	String getRvmVersion() {
 		return this.rvmVersion;
-	}
-
-	String getRvmExecutableName() {
-		return "OpenFinRVM.exe";
 	}
 
 	CompletableFuture<String> getRvmLatestVersion() {

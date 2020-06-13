@@ -105,24 +105,4 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		}
 		return this.openFinDirectory;
 	}
-	
-	@Override
-	public OpenFinLauncherBuilder startupApp(JsonObject startupApp) {
-		this.startupApp = startupApp;
-		return this;
-	}
-	
-	JsonObject getStartupApp() {
-		return this.startupApp;
-	}
-
-	@Override
-	public OpenFinLauncherBuilder injectGatewayScript(boolean inject) {
-		this.injectGatewayScript = inject;
-		return this;
-	}
-	
-	boolean isInjectGatewayScript() {
-		return this.injectGatewayScript;
-	}
 }

@@ -29,7 +29,6 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -80,11 +79,11 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	private OpenFinGatewayListener gatewayListener;
 	private String gatewayScriptUrl;
 
-	public static CompletionStage<OpenFinGateway> newInstance(AbstractLauncherBuilder builder,
+	public static CompletionStage<OpenFinGateway> newInstance(OpenFinGatewayLauncherImpl launcher,
 			OpenFinConnection connection,
 			OpenFinGatewayListener listener) {
 		return new OpenFinGatewayImpl(null, connection, listener)
-				.createGatewayApplication(builder.getStartupApp(), builder.isInjectGatewayScript())
+				.createGatewayApplication(launcher.getStartupApp(), launcher.isInjectGatewayScript())
 				.thenCompose(gateway -> {
 					return gateway.init();
 				});
