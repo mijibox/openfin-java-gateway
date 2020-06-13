@@ -45,6 +45,7 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
+import javax.json.JsonString;
 import javax.json.JsonValue;
 
 import org.slf4j.Logger;
@@ -171,7 +172,7 @@ public class OpenFinConnection implements Listener {
 						.build())
 				.build();
 
-		this.webSocket.sendText(authPayload.toString(), true);
+		this.sendWebSocketMessage(authPayload.toString());
 	}
 
 	@Override
@@ -223,6 +224,12 @@ public class OpenFinConnection implements Listener {
 		this.processMessageThreadPool.shutdown();
 	}
 
+	/**
+	 * only invoke when there will be a responding ack, otherwise use sendWebSocketMessage
+	 * @param action
+	 * @param payload
+	 * @return
+	 */
 	public CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
 		return CompletableFuture.supplyAsync(()->{
 			return null;
@@ -236,7 +243,6 @@ public class OpenFinConnection implements Listener {
 						.add("messageId", msgId)
 						.add("payload", payload).build();
 				String msg = msgJson.toString();
-				logger.debug("sending: {}", msg);
 				this.sendWebSocketMessage(msg);
 				return ackFuture;
 			}
@@ -248,6 +254,7 @@ public class OpenFinConnection implements Listener {
 	
 	private synchronized void sendWebSocketMessage(String msg) {
 		try {
+			logger.debug("sending: {}", msg);
 			this.webSocket.sendText(msg, true)
 					.exceptionally(e -> {
 						logger.error("error sending message over websocket", e);
@@ -282,6 +289,12 @@ public class OpenFinConnection implements Listener {
 		}
 		else if ("authorization-response".equals(action)) {
 			this.authFuture.complete(this);
+//			this.sendMessage("subscribe-to-desktop-event", Json.createObjectBuilder()
+//					.add("topic", "system")
+//					.add("type", "application-connected").build());
+//			this.sendMessage("subscribe-to-desktop-event", Json.createObjectBuilder()
+//					.add("topic", "system")
+//					.add("type", "application-started").build());
 		}
 		else if ("ack".equals(action)) {
 			int correlationId = receivedJson.getInt("correlationId");
@@ -295,6 +308,16 @@ public class OpenFinConnection implements Listener {
 		}
 		else if ("process-message".equals(action)) {
 			this.interAppBus.processMessage(payload);
+		}
+		else if ("process-desktop-event".equals(action)) {
+//			String eventTopic = payload.getString("topic");
+//			String eventType = payload.getString("type");
+//			if ("system".equals(eventTopic) && "application-connected".equals(eventType)) {
+//				if (!this.authFuture.isDone()) {
+//					//startup app
+//					this.authFuture.complete(this);
+//				}
+//			}
 		}
 		else {
 

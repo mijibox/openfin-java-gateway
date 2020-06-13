@@ -17,19 +17,26 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import javax.json.Json;
+import javax.json.JsonObject;
 
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
 
 @RunWith(Parameterized.class)
 public class OpenFinGatewayTest {
+	final static Logger logger = LoggerFactory.getLogger(OpenFinGatewayTest.class);
 
 	@Parameters
 	public static String[] data() {
@@ -111,8 +118,37 @@ public class OpenFinGatewayTest {
 		OpenFinRuntimeLauncherBuilder builder = new OpenFinRuntimeLauncherBuilder();
 //		builder.runtimeVersion(this.runtimeVersion);
 //		OpenFinGateway apiGateway = OpenFinLauncher.newOpenFinLauncherBuilder()
-				builder.addRuntimeOption("--v=1")
+		builder.addRuntimeOption("--v=1")
 				.open(null).toCompletableFuture().get();
 		Thread.sleep(Long.MAX_VALUE);
 	}
+
+	@Test
+	public void setPermission() throws Exception {
+		String appUuid = UUID.randomUUID().toString();
+		JsonObject startupApp = Json.createObjectBuilder()
+				.add("uuid", appUuid)
+				.add("url", "https://www.google.com")
+				.add("permissions", Json.createObjectBuilder()
+						.add("System", Json.createObjectBuilder()
+								.add("readRegistryValue", true)))
+				.add("autoShow", true)
+				.build();
+		System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
+		OpenFinLauncherBuilder builder = OpenFinLauncher.newOpenFinLauncherBuilder();
+		OpenFinGateway gateway = builder.addRuntimeOption("--v=1")
+				.startupApp(startupApp)
+				.open(null).toCompletableFuture().get();
+
+		gateway.invoke("fin.System.readRegistryValue", Json.createValue("HKEY_LOCAL_MACHINE"),
+				Json.createValue("HARDWARE\\DESCRIPTION\\System"), Json.createValue("BootArchitecture"))
+				.thenAccept(r -> {
+					logger.debug("readRegistryValue: {}", r.getResultAsJsonObject());
+				})
+				.whenComplete((v, e) -> {
+					gateway.close();
+				})
+				.toCompletableFuture().get(10, TimeUnit.SECONDS);
+	}
+
 }

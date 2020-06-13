@@ -50,7 +50,7 @@ public class OpenFinRvmLauncherBuilder extends AbstractLauncherBuilder {
 		}).thenCompose(connection -> {
 			return connection.connect();
 		}).thenCompose(connection -> {
-			return OpenFinGatewayImpl.newInstance(connection, listener);
+			return OpenFinGatewayImpl.newInstance(this, connection, listener);
 		});
 	}
 

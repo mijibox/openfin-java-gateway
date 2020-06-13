@@ -76,17 +76,14 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	private AtomicInteger listenerId;
 	private ConcurrentHashMap<Integer, CompletableFuture<JsonObject>> execCorrelationMap;
 	private String gatewayId;
-
 	private OpenFinConnection connection;
-
 	private OpenFinGatewayListener gatewayListener;
+	private String gatewayScriptUrl;
 
-	private Path gatewayScriptPath;
-
-	public static CompletionStage<OpenFinGateway> newInstance(OpenFinConnection connection,
+	public static CompletionStage<OpenFinGateway> newInstance(AbstractLauncherBuilder builder, OpenFinConnection connection,
 			OpenFinGatewayListener listener) {
 		return new OpenFinGatewayImpl(null, connection, listener)
-				.createGatewayApplication()
+				.createGatewayApplication(builder.getStartupApp(), builder.isInjectGatewayScript())
 				.thenCompose(gateway -> {
 					return gateway.init();
 				});
@@ -95,14 +92,9 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	private OpenFinGatewayImpl(String appUuid, OpenFinConnection connection, OpenFinGatewayListener listener) {
 		this.connection = connection;
 		this.gatewayListener = listener;
-		this.gatewayId = (appUuid == null ? connection.getUuid() + "-gateway" : appUuid);
-		this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId)
-				.build();
 		this.messageId = new AtomicInteger(0);
 		this.listenerId = new AtomicInteger(0);
 		this.execCorrelationMap = new ConcurrentHashMap<>();
-		this.topicExec = gatewayId + "-exec";
-		this.topicListener = gatewayId + "-listener";
 		this.iab = connection.getInterAppBus();
 	}
 	
@@ -124,6 +116,10 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	protected CompletionStage<OpenFinGateway> init() {
+		this.topicExec = gatewayId + "-exec";
+		this.topicListener = gatewayId + "-listener";
+
+		
 		return this.iab.subscribe(this.gatewayIdentity, this.topicExec, (srcIdentity, message) -> {
 			processIncomingMessage(srcIdentity, message);
 		}).thenCompose(v -> {
@@ -154,30 +150,52 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 	
 	@Override
-	public String getGatewayPreloadScriptUrl() {
-		return this.gatewayScriptPath.toUri().toString();
+	public String getGatewayScriptUrl() {
+		return this.gatewayScriptUrl;
+	}
+	
+	Path extractResource(String resource) throws IOException {
+		URL gatewayHtml = this.getClass().getClassLoader().getResource(resource);
+		String suffix = resource.substring(resource.lastIndexOf(".") -1);
+		// copy the content to temp directory
+		ReadableByteChannel readableByteChannel = Channels.newChannel(gatewayHtml.openStream());
+		Path tempFile = Files.createTempFile("OpenFinGateway-", suffix);
+		FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile());
+		long size = fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
+		fileOutputStream.close();
+		logger.debug("extracted {} to {}, size: {}", resource, tempFile, size);
+		return tempFile;
 	}
 
-	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication() {
+	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication(JsonObject appOpts, boolean injectGatewayScript) {
 		try {
-			logger.debug("createGatewayApplication: {}", gatewayId);
-			URL gatewayHtml = this.getClass().getClassLoader().getResource("gateway.js");
-			// copy the content to temp directory
-			ReadableByteChannel readableByteChannel = Channels.newChannel(gatewayHtml.openStream());
-			this.gatewayScriptPath = Files.createTempFile(null, ".js");
-			FileOutputStream fileOutputStream = new FileOutputStream(this.gatewayScriptPath.toFile());
-			long size = fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
-			fileOutputStream.close();
-			logger.debug("gateway.js: {}, size: {}", this.gatewayScriptPath, size);
+			boolean preloadScript = injectGatewayScript;
+			logger.debug("createGatewayApplication: {}");
+			this.gatewayScriptUrl = this.extractResource("gateway.js").toUri().toString();
+			if (appOpts == null) {
+				this.gatewayId = connection.getUuid() + "-gateway";
+				this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
+				preloadScript = true;
+				appOpts = Json.createObjectBuilder(this.gatewayIdentity)
+						.add("url", this.extractResource("gateway.html").toUri().toString())
+						.add("autoShow", false).build();
+			}
+			else {
+				this.gatewayId = appOpts.getString("uuid");
+				this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
+			}
 			
-			JsonObject appOpts = Json.createObjectBuilder(this.gatewayIdentity)
-					.add("url", "about:blank")
-					.add("preloadScripts", Json.createArrayBuilder()
-							.add(Json.createObjectBuilder()
-									.add("url", this.gatewayScriptPath.toUri().toString())
-									.build())
-							.build())
-					.add("autoShow", false).build();
+			if (preloadScript) {
+				JsonArray scripts = appOpts.getJsonArray("preloadScripts");
+				if (scripts == null) {
+					scripts = Json.createArrayBuilder().build();
+				}
+				scripts = Json.createArrayBuilder(scripts).add(Json.createObjectBuilder().add("url", this.gatewayScriptUrl)).build();
+				//update existing preloadScript setting.
+				appOpts = Json.createObjectBuilder(appOpts).add("preloadScripts", scripts).build();
+			}
+			
+			logger.debug("gateway appOpts: {}", appOpts);
 
 			return this.connection.sendMessage("create-application", appOpts).thenComposeAsync(ack -> {
 				return this.connection.sendMessage("run-application", this.gatewayIdentity);

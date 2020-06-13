@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>OpenFin Java Gateway</title>
+<script>
+if (typeof fin !== 'undefined') {
+	fin.Application.getCurrentSync().getParentUuid().then(parentUuid =>{
+		console.debug('parentUuid: ' + parentUuid);
+		fin.System.addListener('external-application-disconnected', e=>{
+			if (e.uuid == parentUuid) {
+				fin.Application.getCurrent().then(thisApp=>{
+					thisApp.quit(true);
+				});
+			}
+		});
+	}).catch(error => {
+		console.log('unable to get parentUuid', error);
+	});
+}
+</script>
+</head>
+<body>
+</body>
+</html>

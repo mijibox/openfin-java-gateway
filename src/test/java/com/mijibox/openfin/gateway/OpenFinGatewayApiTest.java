@@ -99,7 +99,6 @@ public class OpenFinGatewayApiTest {
 		String appUuid = UUID.randomUUID().toString();
 		JsonObject appOpts = Json.createObjectBuilder()
 				.add("uuid", appUuid)
-				.add("name", appUuid)
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();
@@ -448,7 +447,7 @@ public class OpenFinGatewayApiTest {
 				.add("url", "https://www.google.com")
 				.add("preloadScripts", Json.createArrayBuilder()
 						.add(Json.createObjectBuilder()
-								.add("url", apiGateway.getGatewayPreloadScriptUrl())))
+								.add("url", apiGateway.getGatewayScriptUrl())))
 				.build();
 
 		JsonObject winOpts = Json.createObjectBuilder()

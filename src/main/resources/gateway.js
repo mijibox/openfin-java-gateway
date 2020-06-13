@@ -1,6 +1,7 @@
 var openFinApiGateway = (function() {
 	let proxyObjectMap = new Map();
 	let objIdSequence = 0;
+	let debug = false;
 
 	function addProxyObject(obj) {
 		let proxyObjId = 'proxy-' + objIdSequence++;
@@ -67,20 +68,21 @@ var openFinApiGateway = (function() {
 	}
 	
 	function sendMessage(dest, topic, payload) {
-		//console.debug('sending message: ' + JSON.stringify(payload));
+		if (debug) {
+			console.debug('sending message: ' + JSON.stringify(payload));
+		}
 		fin.InterApplicationBus.send(dest, topic, payload);
 	}
 
 	if (typeof fin !== 'undefined') {
 		console.info('running in OpenFin runtime');
-		
 		fin.Application.getCurrent().then( gatewayApp => {
 			let gatewayAppUuid = gatewayApp.identity.uuid;
 			let gatewayTopicExec = gatewayAppUuid + '-exec';
-			console.debug('gatewayAppUuid: ' + gatewayAppUuid);
-			console.debug('gatewayTopicExec: ' + gatewayTopicExec);
 			fin.InterApplicationBus.subscribe({uuid: '*'}, gatewayTopicExec, (msg, srcIdentity) => {
-				//console.debug('received message: ' + JSON.stringify(msg));
+				if (debug) {
+					console.debug('received message: ' + JSON.stringify(msg));
+				}
 				let action = msg.action;
 				let messageId = msg.messageId;
 				let payload = msg.payload;
@@ -122,11 +124,15 @@ var openFinApiGateway = (function() {
 							if (typeof result !== 'undefined') {
 								let stringifiedObj = stringify(result);
 								let resultPayloadResultObj = JSON.parse(stringifiedObj);
-								//console.debug('invokeMethod: ' + payload.method + ', got result: ' + stringifiedObj);
+								if (debug) {
+									console.debug('invokeMethod: ' + payload.method + ', got result: ' + stringifiedObj);
+								}
 								resultPayload.payload.result = resultPayloadResultObj
 							}
 							else {
-								//console.debug('invokeMethod: ' + payload.method + ', got result: ' + result);
+								if (debug) {
+									console.debug('invokeMethod: ' + payload.method + ', got result: ' + result);
+								}
 							}
 							if (payload.proxyResult) {
 								resultPayload.payload.proxyObjId = addProxyObject(result);
@@ -148,9 +154,13 @@ var openFinApiGateway = (function() {
 						let listener = function() {
 							return new Promise(resolve=>{
 								let eventPayload = Object.assign([], arguments);
-								//console.debug(iabTopic + ': listener invoked, arguments: ', arguments);
+								if (debug) {
+									console.debug(iabTopic + ': listener invoked, arguments: ', arguments);
+								}
 								fin.InterApplicationBus.subscribe(srcIdentity, iabTopic, e =>{
-									//console.debug(iabTopic + ': got listener response: ', e);
+									if (debug) {
+										console.debug(iabTopic + ': got listener response: ', e);
+									}
 									resolve(e);
 								});
 								fin.InterApplicationBus.send(srcIdentity, iabTopic, eventPayload);
@@ -192,17 +202,6 @@ var openFinApiGateway = (function() {
 						});
 					}
 				}
-			});
-			
-			gatewayApp.getParentUuid().then(parentUuid =>{
-				console.debug('parentUuid: ' + parentUuid);
-				fin.System.addListener('external-application-disconnected', e=>{
-					if (e.uuid == parentUuid) {
-						fin.Application.getCurrent().then(thisApp=>{
-							thisApp.quit(true);
-						});
-					}
-				});
 			});
 		});
 	}

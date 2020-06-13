@@ -45,7 +45,7 @@ public class OpenFinRuntimeLauncherBuilder extends AbstractLauncherBuilder {
 		return launcher.launch().thenCompose(connection ->{
 			return connection.connect();
 		}).thenCompose(connection->{
-			return OpenFinGatewayImpl.newInstance(connection, listener);
+			return OpenFinGatewayImpl.newInstance(this, connection, listener);
 		});
 	}
 }
