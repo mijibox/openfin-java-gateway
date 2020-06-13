@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OpenFinGatewayImpl implements OpenFinGateway {
-	final static Logger logger = LoggerFactory.getLogger(OpenFinGateway.class);
+	final static Logger logger = LoggerFactory.getLogger(OpenFinGatewayImpl.class);
 
 	final static String ACTION_ADD_LISTENER = "add-listener";
 	final static String ACTION_DELETE = "delete";
@@ -174,13 +174,13 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			boolean injectGatewayScript) {
 		try {
 			boolean injectScript = injectGatewayScript;
-			logger.debug("createGatewayApplication: {}");
 			this.gatewayScriptUrl = this.extractResource("gateway.js").toUri().toString();
 			if (appOpts == null) {
 				this.gatewayId = connection.getUuid() + "-gateway";
 				injectScript = true;
 				appOpts = Json.createObjectBuilder()
 						.add("uuid", this.gatewayId)
+						.add("name", this.gatewayId)
 						.add("url", this.extractResource("gateway.html").toUri().toString())
 						.add("autoShow", false).build();
 			}
@@ -198,10 +198,9 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 				// update existing preloadScript setting.
 				appOpts = Json.createObjectBuilder(appOpts).add("preloadScripts", scripts).build();
 			}
-			logger.debug("gateway appOpts: {}", appOpts);
-			return this.connection.sendMessage("create-application", appOpts).thenComposeAsync(ack -> {
+			return this.connection.sendMessage("create-application", appOpts).thenCompose(ack -> {
 				return this.connection.sendMessage("run-application", this.gatewayIdentity);
-			}).thenApplyAsync(ack -> {
+			}).thenApply(ack -> {
 				if (!ack.getBoolean("success", false)) {
 					throw new RuntimeException("error createGatewayApplication, reason: " + ack.getString("reason"));
 				}

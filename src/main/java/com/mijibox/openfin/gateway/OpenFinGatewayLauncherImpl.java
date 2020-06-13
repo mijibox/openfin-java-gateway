@@ -15,6 +15,10 @@ public class OpenFinGatewayLauncherImpl implements OpenFinGatewayLauncher {
 	private JsonObject starupApp;
 	private URL configUrl;
 	private OpenFinGatewayListener gatewayListener;
+	
+	OpenFinGatewayLauncherImpl() {
+		this.injectGatewayScript = true;
+	}
 
 	@Override
 	public OpenFinGatewayLauncher launcherBuilder(OpenFinLauncherBuilder launcherBuilder) {
