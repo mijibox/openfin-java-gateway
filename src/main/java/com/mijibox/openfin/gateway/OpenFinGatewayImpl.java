@@ -80,7 +80,8 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	private OpenFinGatewayListener gatewayListener;
 	private String gatewayScriptUrl;
 
-	public static CompletionStage<OpenFinGateway> newInstance(AbstractLauncherBuilder builder, OpenFinConnection connection,
+	public static CompletionStage<OpenFinGateway> newInstance(AbstractLauncherBuilder builder,
+			OpenFinConnection connection,
 			OpenFinGatewayListener listener) {
 		return new OpenFinGatewayImpl(null, connection, listener)
 				.createGatewayApplication(builder.getStartupApp(), builder.isInjectGatewayScript())
@@ -90,6 +91,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	private OpenFinGatewayImpl(String appUuid, OpenFinConnection connection, OpenFinGatewayListener listener) {
+		this.gatewayId = appUuid;
 		this.connection = connection;
 		this.gatewayListener = listener;
 		this.messageId = new AtomicInteger(0);
@@ -97,12 +99,12 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		this.execCorrelationMap = new ConcurrentHashMap<>();
 		this.iab = connection.getInterAppBus();
 	}
-	
+
 	@Override
 	public String getId() {
 		return this.gatewayId;
 	}
-	
+
 	private void processIncomingMessage(JsonValue srcIdentity, JsonValue message) {
 		JsonObject msg = ((JsonObject) message);
 		String action = msg.getString(ACTION);
@@ -118,8 +120,10 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	protected CompletionStage<OpenFinGateway> init() {
 		this.topicExec = gatewayId + "-exec";
 		this.topicListener = gatewayId + "-listener";
+		if (this.gatewayIdentity == null) {
+			this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
+		}
 
-		
 		return this.iab.subscribe(this.gatewayIdentity, this.topicExec, (srcIdentity, message) -> {
 			processIncomingMessage(srcIdentity, message);
 		}).thenCompose(v -> {
@@ -148,15 +152,15 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this;
 		});
 	}
-	
+
 	@Override
 	public String getGatewayScriptUrl() {
 		return this.gatewayScriptUrl;
 	}
-	
+
 	Path extractResource(String resource) throws IOException {
 		URL gatewayHtml = this.getClass().getClassLoader().getResource(resource);
-		String suffix = resource.substring(resource.lastIndexOf(".") -1);
+		String suffix = resource.substring(resource.lastIndexOf(".") - 1);
 		// copy the content to temp directory
 		ReadableByteChannel readableByteChannel = Channels.newChannel(gatewayHtml.openStream());
 		Path tempFile = Files.createTempFile("OpenFinGateway-", suffix);
@@ -167,36 +171,35 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		return tempFile;
 	}
 
-	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication(JsonObject appOpts, boolean injectGatewayScript) {
+	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication(JsonObject appOpts,
+			boolean injectGatewayScript) {
 		try {
-			boolean preloadScript = injectGatewayScript;
+			boolean injectScript = injectGatewayScript;
 			logger.debug("createGatewayApplication: {}");
 			this.gatewayScriptUrl = this.extractResource("gateway.js").toUri().toString();
 			if (appOpts == null) {
 				this.gatewayId = connection.getUuid() + "-gateway";
-				this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
-				preloadScript = true;
-				appOpts = Json.createObjectBuilder(this.gatewayIdentity)
+				injectScript = true;
+				appOpts = Json.createObjectBuilder()
+						.add("uuid", this.gatewayId)
 						.add("url", this.extractResource("gateway.html").toUri().toString())
 						.add("autoShow", false).build();
 			}
 			else {
 				this.gatewayId = appOpts.getString("uuid");
-				this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
 			}
-			
-			if (preloadScript) {
+			this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
+			if (injectScript) {
 				JsonArray scripts = appOpts.getJsonArray("preloadScripts");
 				if (scripts == null) {
 					scripts = Json.createArrayBuilder().build();
 				}
-				scripts = Json.createArrayBuilder(scripts).add(Json.createObjectBuilder().add("url", this.gatewayScriptUrl)).build();
-				//update existing preloadScript setting.
+				scripts = Json.createArrayBuilder(scripts)
+						.add(Json.createObjectBuilder().add("url", this.gatewayScriptUrl)).build();
+				// update existing preloadScript setting.
 				appOpts = Json.createObjectBuilder(appOpts).add("preloadScripts", scripts).build();
 			}
-			
 			logger.debug("gateway appOpts: {}", appOpts);
-
 			return this.connection.sendMessage("create-application", appOpts).thenComposeAsync(ack -> {
 				return this.connection.sendMessage("run-application", this.gatewayIdentity);
 			}).thenApplyAsync(ack -> {
@@ -212,7 +215,6 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			throw new RuntimeException("error createGatewayApplication", e);
 		}
 		finally {
-
 		}
 	}
 
@@ -287,25 +289,27 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 
 	@Override
 	public CompletionStage<Void> addListener(String method, OpenFinEventListener listener) {
-		return this.addListener(false, method, listener).thenAccept(r->{
-			
+		return this.addListener(false, method, listener).thenAccept(r -> {
+
 		});
 	}
 
 	@Override
-	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener) {
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method,
+			OpenFinEventListener listener) {
 		return this.addListener(createProxyListener, method, null, listener);
 	}
-	
+
 	@Override
 	public CompletionStage<Void> addListener(String method, String event, OpenFinEventListener listener) {
-		return this.addListener(false, method, event, listener).thenAccept(r->{
-			
+		return this.addListener(false, method, event, listener).thenAccept(r -> {
+
 		});
 	}
-	
+
 	@Override
-	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener) {
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event,
+			OpenFinEventListener listener) {
 		if (event != null) {
 			return this.addListener(createProxyListener, method, listener, 1, Json.createValue(event));
 		}
@@ -313,13 +317,15 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this.addListener(createProxyListener, method, listener, 0);
 		}
 	}
-	
+
 	@Override
-	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method,
+			OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
 		return this.addListener(createProxyListener, null, method, listener, listenerArgIndex, args);
 	}
 
-	CompletionStage<ProxyListener> addListener(boolean createProxyListener, ProxyObject proxyObject, String method, String event, OpenFinEventListener listener) {
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, ProxyObject proxyObject, String method,
+			String event, OpenFinEventListener listener) {
 		if (event != null) {
 			return this.addListener(createProxyListener, proxyObject, method, listener, 1, Json.createValue(event));
 		}
@@ -327,23 +333,27 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this.addListener(createProxyListener, proxyObject, method, listener, 0);
 		}
 	}
-	
-	
+
 	/**
 	 * Add event listener or register action callback.
 	 * 
-	 * @param createProxyListener true to create proxyListener so it can be referenced later.
-	 * @param proxyObject if not null, then invoke the instance method of this proxyObject, otherwise invoke the static method.
-	 * @param method method name to add the listener
-	 * @param listener the listener to be invoked when it's invoked in OpenFin runtime
-	 * @param listenerArgIndex listener location in the API method. 
-	 * @param args arguments supplied for the function.
-	 * @return proxyListener object if createProxyListener is set to true and it was successfully created in OpenFin runtime.
+	 * @param createProxyListener true to create proxyListener so it can be
+	 *                            referenced later.
+	 * @param proxyObject         if not null, then invoke the instance method of
+	 *                            this proxyObject, otherwise invoke the static
+	 *                            method.
+	 * @param method              method name to add the listener
+	 * @param listener            the listener to be invoked when it's invoked in
+	 *                            OpenFin runtime
+	 * @param listenerArgIndex    listener location in the API method.
+	 * @param args                arguments supplied for the function.
+	 * @return proxyListener object if createProxyListener is set to true and it was
+	 *         successfully created in OpenFin runtime.
 	 */
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, ProxyObject proxyObject, String method,
 			OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
 		String iabTopic = this.topicListener + "-" + this.listenerId.getAndIncrement();
-		OpenFinIabMessageListener iabListener = (src, e)->{
+		OpenFinIabMessageListener iabListener = (src, e) -> {
 			JsonValue actionResult = listener.onEvent((JsonArray) e);
 			iab.send(src, iabTopic, actionResult == null ? JsonValue.NULL : actionResult);
 		};
@@ -372,7 +382,8 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			return this.sendMessage(ACTION_ADD_LISTENER, builder.build());
 		}).thenApply(result -> {
 			if (result.containsKey(PROXY_ID)) {
-				ProxyListener proxyListener = new ProxyListener(result.get(PROXY_ID), proxyObject, iabTopic, iabListener, this);
+				ProxyListener proxyListener = new ProxyListener(result.get(PROXY_ID), proxyObject, iabTopic,
+						iabListener, this);
 				return proxyListener;
 			}
 			else {
@@ -415,18 +426,20 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	public OpenFinInterApplicationBus getOpenFinInterApplicationBus() {
 		return this.iab;
 	}
-	
+
 	public CompletionStage<ProxyListener> addEventHandler(Consumer<? extends JsonValue> action) {
 		return null;
 	}
-	
+
 	@Override
 	public CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid) {
-		return (new OpenFinGatewayImpl(appUuid, this.connection, null) { 
+		OpenFinGatewayImpl appGateway = new OpenFinGatewayImpl(appUuid, this.connection, null) {
 			@Override
 			public CompletionStage<OpenFinGateway> close() {
 				throw new RuntimeException("invalid operation, unable to close application gateway");
 			}
-		}).init();
+		};
+		appGateway.gatewayScriptUrl = this.gatewayScriptUrl;
+		return appGateway.init();
 	}
 }

@@ -60,7 +60,7 @@ public class OpenFinConnection implements Listener {
 	private ConcurrentHashMap<Integer, CompletableFuture<JsonObject>> ackMap;
 	private int port;
 	private WebSocket webSocket;
-	private String uuid;
+	private String connectionUuid;
 	private CompletableFuture<OpenFinConnection> authFuture;
 	private ExecutorService processMessageThreadPool;
 	private ExecutorService sendMessageThreadPool;
@@ -70,16 +70,8 @@ public class OpenFinConnection implements Listener {
 	private String licenseKey;
 	private String configUrl;
 
-	public OpenFinConnection(int port) {
-		this(UUID.randomUUID().toString(), port);
-	}
-	
-	public OpenFinConnection(String uuid, int port) {
-		this(uuid, port, "N/A", "N/A");
-	}
-
-	public OpenFinConnection(String uuid, int port, String licenseKey, String configUrl) {
-		this.uuid = uuid;
+	OpenFinConnection(String connectionUuid, int port, String licenseKey, String configUrl) {
+		this.connectionUuid = connectionUuid;
 		this.port = port;
 		this.licenseKey = licenseKey;
 		this.configUrl = configUrl;
@@ -95,7 +87,7 @@ public class OpenFinConnection implements Listener {
 	}
 
 	public String getUuid() {
-		return this.uuid;
+		return this.connectionUuid;
 	}
 
 	public boolean isConnected() {
@@ -132,10 +124,8 @@ public class OpenFinConnection implements Listener {
 			inputStream.close();
 		}
 		catch (Exception e) {
-//			e.printStackTrace();
 		}
 		finally {
-			
 		}
 		return v;
 	}
@@ -157,10 +147,10 @@ public class OpenFinConnection implements Listener {
 
 		JsonObject authPayload = Json.createObjectBuilder().add("action", "request-external-authorization")
 				.add("payload", Json.createObjectBuilder()
-						.add("uuid", this.uuid)
+						.add("uuid", this.connectionUuid)
 						.add("type", "file-token")
 						.add("licenseKey", this.licenseKey == null ? JsonValue.NULL : Json.createValue(this.licenseKey))
-						.add("configUrl", this.configUrl)
+						.add("configUrl", this.configUrl == null ? JsonValue.NULL : Json.createValue(this.configUrl))
 						.add("client", Json.createObjectBuilder()
 								.add("type", "java")
 								.add("javaVendor", System.getProperty("java.vendor"))
@@ -279,7 +269,7 @@ public class OpenFinConnection implements Listener {
 				Files.write(Paths.get(file), token.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.WRITE,
 						StandardOpenOption.TRUNCATE_EXISTING);
 				JsonObject requestAuthPayload = Json.createObjectBuilder()
-						.add("uuid", this.uuid)
+						.add("uuid", this.connectionUuid)
 						.add("type", "file-token").build();
 				this.sendMessage("request-authorization", requestAuthPayload);
 			}
@@ -289,12 +279,6 @@ public class OpenFinConnection implements Listener {
 		}
 		else if ("authorization-response".equals(action)) {
 			this.authFuture.complete(this);
-//			this.sendMessage("subscribe-to-desktop-event", Json.createObjectBuilder()
-//					.add("topic", "system")
-//					.add("type", "application-connected").build());
-//			this.sendMessage("subscribe-to-desktop-event", Json.createObjectBuilder()
-//					.add("topic", "system")
-//					.add("type", "application-started").build());
 		}
 		else if ("ack".equals(action)) {
 			int correlationId = receivedJson.getInt("correlationId");
@@ -308,19 +292,6 @@ public class OpenFinConnection implements Listener {
 		}
 		else if ("process-message".equals(action)) {
 			this.interAppBus.processMessage(payload);
-		}
-		else if ("process-desktop-event".equals(action)) {
-//			String eventTopic = payload.getString("topic");
-//			String eventType = payload.getString("type");
-//			if ("system".equals(eventTopic) && "application-connected".equals(eventType)) {
-//				if (!this.authFuture.isDone()) {
-//					//startup app
-//					this.authFuture.complete(this);
-//				}
-//			}
-		}
-		else {
-
 		}
 	}
 
