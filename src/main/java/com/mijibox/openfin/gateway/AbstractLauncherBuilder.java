@@ -22,6 +22,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.json.JsonObject;
+
 import com.sun.jna.Platform;
 
 public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder {
@@ -31,10 +33,13 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 	protected String runtimeVersion;
 	protected List<String> runtimeOptions;
 	protected Path openFinDirectory;
+	protected JsonObject startupApp;
+	protected boolean injectGatewayScript;
 
 	AbstractLauncherBuilder() {
 		this.assetsUrl = "https://cdn.openfin.co";
 		this.runtimeOptions = new ArrayList<>();
+		this.injectGatewayScript = true;
 	}
 
 	@Override

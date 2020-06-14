@@ -32,7 +32,6 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +44,7 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
+import javax.json.JsonValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,33 +58,34 @@ public class OpenFinConnection implements Listener {
 	private ConcurrentHashMap<Integer, CompletableFuture<JsonObject>> ackMap;
 	private int port;
 	private WebSocket webSocket;
-	private String uuid;
+	private String connectionUuid;
 	private CompletableFuture<OpenFinConnection> authFuture;
 	private ExecutorService processMessageThreadPool;
+	private ExecutorService sendMessageThreadPool;
 	private OpenFinInterApplicationBus interAppBus;
 	private List<Listener> webSocketListeners;
-
 	private boolean connected;
+	private String licenseKey;
+	private String configUrl;
 
-	public OpenFinConnection(int port) {
-		this(UUID.randomUUID().toString(), port);
-	}
-
-	public OpenFinConnection(String uuid, int port) {
-		this.uuid = uuid;
+	OpenFinConnection(String connectionUuid, int port, String licenseKey, String configUrl) {
+		this.connectionUuid = connectionUuid;
 		this.port = port;
+		this.licenseKey = licenseKey;
+		this.configUrl = configUrl;
 		this.receivedMessage = new StringBuilder();
 		this.ackMap = new ConcurrentHashMap<>();
 		this.accumulatedMessage = new CompletableFuture<>();
 		this.messageId = new AtomicInteger(0);
 		this.authFuture = new CompletableFuture<>();
 		this.processMessageThreadPool = Executors.newFixedThreadPool(10);
+		this.sendMessageThreadPool = Executors.newFixedThreadPool(10);
 		this.interAppBus = new OpenFinInterApplicationBus(this);
 		this.webSocketListeners = new ArrayList<>();
 	}
 
 	public String getUuid() {
-		return this.uuid;
+		return this.connectionUuid;
 	}
 
 	public boolean isConnected() {
@@ -121,10 +122,8 @@ public class OpenFinConnection implements Listener {
 			inputStream.close();
 		}
 		catch (Exception e) {
-			e.printStackTrace();
 		}
 		finally {
-			
 		}
 		return v;
 	}
@@ -146,15 +145,22 @@ public class OpenFinConnection implements Listener {
 
 		JsonObject authPayload = Json.createObjectBuilder().add("action", "request-external-authorization")
 				.add("payload", Json.createObjectBuilder()
-						.add("uuid", this.uuid)
+						.add("uuid", this.connectionUuid)
 						.add("type", "file-token")
+						.add("licenseKey", this.licenseKey == null ? JsonValue.NULL : Json.createValue(this.licenseKey))
+						.add("configUrl", this.configUrl == null ? JsonValue.NULL : Json.createValue(this.configUrl))
 						.add("client", Json.createObjectBuilder()
 								.add("type", "java")
+								.add("javaVendor", System.getProperty("java.vendor"))
+								.add("javaVersion", System.getProperty("java.version"))
+								.add("osName", System.getProperty("os.name"))
+								.add("osVersion", System.getProperty("os.version"))
+								.add("osArch", System.getProperty("os.arch"))
 								.add("version", getPackageVersion()).build())
 						.build())
 				.build();
 
-		this.webSocket.sendText(authPayload.toString(), true);
+		this.sendWebSocketMessage(authPayload.toString());
 	}
 
 	@Override
@@ -206,33 +212,45 @@ public class OpenFinConnection implements Listener {
 		this.processMessageThreadPool.shutdown();
 	}
 
-	public synchronized CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
-		if (this.connected) {
-			int msgId = this.messageId.getAndIncrement();
-			CompletableFuture<JsonObject> ackFuture = new CompletableFuture<>();
-			this.ackMap.put(msgId, ackFuture);
-			JsonObjectBuilder json = Json.createObjectBuilder();
-			JsonObject msgJson = json.add("action", action)
-					.add("messageId", msgId)
-					.add("payload", payload).build();
-			String msg = msgJson.toString();
+	/**
+	 * only invoke when there will be a responding ack, otherwise use sendWebSocketMessage
+	 * @param action
+	 * @param payload
+	 * @return
+	 */
+	public CompletionStage<JsonObject> sendMessage(String action, JsonObject payload) {
+		return CompletableFuture.supplyAsync(()->{
+			return null;
+		}, this.sendMessageThreadPool).thenCompose(v->{
+			if (this.connected) {
+				int msgId = this.messageId.getAndIncrement();
+				CompletableFuture<JsonObject> ackFuture = new CompletableFuture<>();
+				this.ackMap.put(msgId, ackFuture);
+				JsonObjectBuilder json = Json.createObjectBuilder();
+				JsonObject msgJson = json.add("action", action)
+						.add("messageId", msgId)
+						.add("payload", payload).build();
+				String msg = msgJson.toString();
+				this.sendWebSocketMessage(msg);
+				return ackFuture;
+			}
+			else {
+				throw new RuntimeException("not connected");
+			}
+		});
+	}
+	
+	private synchronized void sendWebSocketMessage(String msg) {
+		try {
 			logger.debug("sending: {}", msg);
-
-			try {
-				this.webSocket.sendText(msg, true)
-						.exceptionally(e -> {
-							logger.error("error sending message over websocket", e);
-							return null;
-						}).toCompletableFuture().get();
-			}
-			catch (InterruptedException | ExecutionException e) {
-				e.printStackTrace();
-			}
-
-			return ackFuture;
+			this.webSocket.sendText(msg, true)
+					.exceptionally(e -> {
+						logger.error("error sending message over websocket", e);
+						return null;
+					}).toCompletableFuture().get();
 		}
-		else {
-			throw new RuntimeException("not connected");
+		catch (InterruptedException | ExecutionException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -249,7 +267,7 @@ public class OpenFinConnection implements Listener {
 				Files.write(Paths.get(file), token.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.WRITE,
 						StandardOpenOption.TRUNCATE_EXISTING);
 				JsonObject requestAuthPayload = Json.createObjectBuilder()
-						.add("uuid", this.uuid)
+						.add("uuid", this.connectionUuid)
 						.add("type", "file-token").build();
 				this.sendMessage("request-authorization", requestAuthPayload);
 			}
@@ -272,9 +290,6 @@ public class OpenFinConnection implements Listener {
 		}
 		else if ("process-message".equals(action)) {
 			this.interAppBus.processMessage(payload);
-		}
-		else {
-
 		}
 	}
 

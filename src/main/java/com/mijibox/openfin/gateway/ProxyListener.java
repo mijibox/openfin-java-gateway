@@ -19,23 +19,14 @@ package com.mijibox.openfin.gateway;
 
 import javax.json.JsonValue;
 
-public class ProxyListener {
-	private JsonValue proxyListenerId;
+public class ProxyListener extends AbstractProxy {
 	private OpenFinIabMessageListener listener;
 	private String iabTopic;
-	private ProxyObject invoker;
 	
-	ProxyListener(ProxyObject invoker, OpenFinIabMessageListener listener) {
-		this.invoker = invoker;
-		this.listener = listener;
-	}
-	
-	void setProxyListenerId(JsonValue proxyListenerId) {
-		this.proxyListenerId = proxyListenerId;
-	}
-	
-	void setIabTopic(String iabTopic) {
+	ProxyListener(JsonValue proxyId, ProxyObject invoker, String iabTopic, OpenFinIabMessageListener listener, OpenFinGatewayImpl gateway) {
+		super(proxyId, invoker, gateway);
 		this.iabTopic = iabTopic;
+		this.listener = listener;
 	}
 	
 	String getIabTopic() {
@@ -48,9 +39,5 @@ public class ProxyListener {
 	
 	OpenFinIabMessageListener getListener() {
 		return this.listener;
-	}
-
-	JsonValue getProxyListenerId() {
-		return this.proxyListenerId;
 	}
 }

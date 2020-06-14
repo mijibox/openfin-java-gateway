@@ -34,13 +34,11 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	private final static Logger logger = LoggerFactory.getLogger(OpenFinRvmLauncher.class);
 	private String rvmVersion;
 	private Path rvmInstallDirectory;
-	private String rvmExecutableName;
 	private List<String> rvmOptions;
 
 	public OpenFinRvmLauncher(OpenFinRvmLauncherBuilder builder) {
 		super(builder);
 		this.rvmInstallDirectory = builder.getOpenFinDirectory();
-		this.rvmExecutableName = builder.getRvmExecutableName();
 		this.rvmVersion = builder.getRvmVersion();
 		this.rvmOptions = builder.getRvmOptions();
 		if (this.runtimeVersion == null) {
@@ -49,7 +47,7 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	}
 
 	private CompletionStage<Path> getRvmExecutablePath() {
-		Path rvmPath = this.rvmInstallDirectory.resolve(this.rvmExecutableName);
+		Path rvmPath = this.rvmInstallDirectory.resolve("OpenFinRVM.exe");
 		if (!Files.exists(rvmPath, LinkOption.NOFOLLOW_LINKS)) {
 			return CompletableFuture.supplyAsync(() -> {
 				logger.debug("{} not available.", rvmPath);
@@ -86,27 +84,27 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 		return this.getRvmExecutablePath().thenApply(rvmPath -> {
 			try {
 				//rvm can handle runtime channel version
-				var configPath = this.createStartupConfig(namedPipeName);
+				Path configPath = this.createStartupConfig(namedPipeName);
 				List<String> command = new ArrayList<>();
 				command.add(rvmPath.toAbsolutePath().normalize().toString());
 				for (String s : this.rvmOptions) {
 					command.add(s);
 				}
-				command.add("--config=" + configPath.toAbsolutePath().normalize().toUri().toURL().toString());
+				command.add("--config=" + configPath.toUri().toString());
 				
 				logger.info("start process: {}", command);
 				ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[] {}))
 						.redirectOutput(Redirect.DISCARD)
 						.redirectError(Redirect.DISCARD);
 				pb.start();
-				return pb;
+				return configPath;
 			}
 			catch (Exception e) {
 				logger.error("error launching OpenFinRVM", e);
 				throw new RuntimeException("error launching OpenFinRVM", e);
 			}
-		}).thenCombine(portNumberFuture, (v, port) -> {
-			return new OpenFinConnection(namedPipeName, port);
+		}).thenCombine(portNumberFuture, (configPath, port) -> {
+			return new OpenFinConnection(namedPipeName, port, this.licenseKey, configPath.toUri().toString());
 		});
 	}
 }

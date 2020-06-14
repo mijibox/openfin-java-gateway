@@ -19,52 +19,61 @@ package com.mijibox.openfin.gateway;
 
 import java.util.concurrent.CompletionStage;
 
+import javax.json.JsonObject;
 import javax.json.JsonValue;
 
-public class ProxyObject {
-	JsonValue proxyObjId;
-	OpenFinGatewayImpl apiGateway;
-	ProxyObject invoker;
-
-	ProxyObject(JsonValue proxyObjId, ProxyObject invoker, OpenFinGatewayImpl apiGateway) {
-		this.proxyObjId = proxyObjId;
-		this.invoker = invoker;
-		this.apiGateway = apiGateway;
-	}
+public class ProxyObject extends AbstractProxy {
 	
-	public ProxyObject getInvoker() {
-		return this.invoker;
+	JsonObject resultJson;
+
+	ProxyObject(JsonValue proxyId, JsonObject jsonObject, ProxyObject invoker, OpenFinGatewayImpl gateway) {
+		super(proxyId, invoker, gateway);
+		this.resultJson = jsonObject;
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method) {
-		return this.apiGateway.invoke(this, method);
+		return this.gateway.invoke(this, method);
 	}
 	
 	public CompletionStage<InvokeResult> invoke(String method, JsonValue... args) {
-		return this.apiGateway.invoke(this, method, args);
+		return this.gateway.invoke(this, method, args);
 	}
 
 	public CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args) {
-		return this.apiGateway.invoke(createProxyObject, this, method, args);
+		return this.gateway.invoke(createProxyObject, this, method, args);
+	}
+
+	/**
+	 * Single argument like ChannelProvider.onConnection(listener);
+	 * @param method method name to add the listener 
+	 * @param listener listener
+	 * @return new CompletionStage that returns null ProxyListener.
+	 */
+	public CompletionStage<ProxyListener> addListener(String method, OpenFinEventListener listener) {
+		return this.addListener(false, method, listener);
+	}
+
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener) {
+		return this.addListener(createProxyListener, method, null, listener);
 	}
 	
 	public CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener) {
-		return this.apiGateway.addInstanceListener(true, this, method, event, listener);
+		return this.addListener(false, method, event, listener);
 	}
 	
 	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener) {
-		return this.apiGateway.addInstanceListener(createProxyListener, this, method, event, listener);
+		return this.gateway.addListener(createProxyListener, this, method, event, listener);
+	}
+
+	public CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIdx, JsonValue... args) {
+		return this.gateway.addListener(createProxyListener, this, method, listener, listenerArgIdx, args);
 	}
 
 	public CompletionStage<Void> removeListener(String method, String event, ProxyListener listener) {
-		return this.apiGateway.removeInstanceListener(this, method, event, listener);
+		return this.gateway.removeInstanceListener(this, method, event, listener);
 	}
 
-	public CompletionStage<Void> dispose() {
-		return this.apiGateway.deleteProxyObject(this.proxyObjId);
-	}
-
-	public JsonValue getProxyObjectId() {
-		return this.proxyObjId;
+	public JsonObject getResultJson() {
+		return this.resultJson;
 	}
 }

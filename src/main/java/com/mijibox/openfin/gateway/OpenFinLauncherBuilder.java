@@ -20,18 +20,46 @@ package com.mijibox.openfin.gateway;
 import java.nio.file.Path;
 import java.util.concurrent.CompletionStage;
 
-import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
-
 public interface OpenFinLauncherBuilder {
+	/**
+	 * where to download OpenFin assets, default to "https://cdn.openfin.co"
+	 * @param assetsUrl
+	 * @return
+	 */
 	OpenFinLauncherBuilder assetsUrl(String assetsUrl);
 	
+	/**
+	 * the license key provided by OpenFin
+	 * @param licenseKey
+	 * @return
+	 */
 	OpenFinLauncherBuilder licenseKey(String licenseKey);
 
+	/**
+	 * OpenFin runtime version, default to "stable"
+	 * @param runtimeVersion
+	 * @return
+	 */
 	OpenFinLauncherBuilder runtimeVersion(String runtimeVersion);
 
+	/**
+	 * Additional OpenFin Runtime options.
+	 * @param runtimeOption
+	 * @return
+	 */
 	OpenFinLauncherBuilder addRuntimeOption(String runtimeOption);
 
+	/**
+	 * Directory to find OpenFin RVM or Runtime, default to "%LOCALAPPDATA\\OpenFin" on Windows and "~/OpenFin" on Linux/Mac.
+	 * @param openFinDirectory
+	 * @return
+	 */
 	OpenFinLauncherBuilder openFinDirectory(Path openFinDirectory);
-
-	CompletionStage<OpenFinGateway> open(OpenFinGatewayListener listener);
+	
+	/**
+	 * Build the launcher
+	 * @return
+	 */
+	CompletionStage<OpenFinLauncher> build();
+	
 }

@@ -17,10 +17,34 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
-import javax.json.JsonArray;
+import java.util.concurrent.CompletionStage;
+
 import javax.json.JsonValue;
 
-@FunctionalInterface
-public interface OpenFinEventListener {
-	public JsonValue onEvent(JsonArray event);
+public abstract class AbstractProxy {
+	JsonValue proxyId;
+	OpenFinGatewayImpl gateway;
+	ProxyObject invoker;
+	
+	AbstractProxy(JsonValue proxyId, ProxyObject invoker, OpenFinGatewayImpl gateway) {
+		this.proxyId = proxyId;
+		this.invoker = invoker;
+		this.gateway = gateway;
+	}
+	
+	public ProxyObject getInvoker() {
+		return this.invoker;
+	}
+	
+	public JsonValue getProxyId() {
+		return this.proxyId;
+	}
+	
+	public OpenFinGateway getGateway() {
+		return this.gateway;
+	}
+	
+	public CompletionStage<Void> dispose() {
+		return this.gateway.deleteProxyObject(this.proxyId);
+	}
 }

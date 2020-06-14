@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mijibox.openfin</groupId>
 	<artifactId>openfin-gateway</artifactId>
-	<version>1.3-SNAPSHOT</version>
+	<version>1.4-SNAPSHOT</version>
 
 	<name>openfin-gateway</name>
 	<description>OpenFin Gateway</description>
@@ -23,9 +23,10 @@
 
 	<developers>
 		<developer>
-			<id>mijibox</id>
-			<name>MIJI Technology LLC</name>
+			<id>anthonywtho</id>
+			<name>Anthony Ho</name>
 			<email>anthony@mijibox.com</email>
+			<organization>MIJI Technology LLC</organization>
 		</developer>
 	</developers>
 

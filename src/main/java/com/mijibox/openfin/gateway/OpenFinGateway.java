@@ -33,20 +33,30 @@ public interface OpenFinGateway {
 		default void onClose() {
 		};
 	}
-
-	CompletionStage<InvokeResult> invoke(String method);
+	
+	String getId();
+	
+	String getGatewayScriptUrl();
 
 	CompletionStage<InvokeResult> invoke(String method, JsonValue... args);
 
 	CompletionStage<InvokeResult> invoke(boolean createProxyObject, String method, JsonValue... args);
 
-	CompletionStage<ProxyListener> addListener(String method, String event, OpenFinEventListener listener);
+	CompletionStage<Void> addListener(String method, OpenFinEventListener listener);
+
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener);
+
+	CompletionStage<Void> addListener(String method, String event, OpenFinEventListener listener);
 
 	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, String event, OpenFinEventListener listener);
+
+	CompletionStage<ProxyListener> addListener(boolean createProxyListener, String method, OpenFinEventListener listener, int listenerArgIdx, JsonValue... args);
 
 	CompletionStage<Void> removeListener(String method, String event, ProxyListener listener);
 
 	CompletionStage<OpenFinGateway> close();
 
 	OpenFinInterApplicationBus getOpenFinInterApplicationBus();
+	
+	CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid);
 }

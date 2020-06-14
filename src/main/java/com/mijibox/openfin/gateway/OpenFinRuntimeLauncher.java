@@ -99,14 +99,14 @@ public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 				pb.directory(this.openFinDirectory.getParent().toFile());
 				pb.start();
 				logger.debug("process started");
-				return pb;
+				return configPath;
 			}
 			catch (Exception e) {
 				logger.error("error launching OpenFin runtime", e);
 				throw new RuntimeException("error launching OpenFin runtime", e);
 			}
-		}).thenCombine(portNumberFuture, (pb, n) -> {
-			return new OpenFinConnection(namedPipeName, n);
+		}).thenCombine(portNumberFuture, (configPath, n) -> {
+			return new OpenFinConnection(namedPipeName, n, this.licenseKey, configPath.toUri().toString());
 		});
 	}
 
