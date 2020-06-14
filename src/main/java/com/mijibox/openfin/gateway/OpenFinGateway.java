@@ -37,8 +37,6 @@ public interface OpenFinGateway {
 	String getId();
 	
 	String getGatewayScriptUrl();
-	
-	CompletionStage<InvokeResult> invoke(String method);
 
 	CompletionStage<InvokeResult> invoke(String method, JsonValue... args);
 

@@ -236,11 +236,6 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	@Override
-	public CompletionStage<InvokeResult> invoke(String method) {
-		return this.invoke(method, (JsonValue[]) null);
-	}
-
-	@Override
 	public CompletionStage<InvokeResult> invoke(String method, JsonValue... args) {
 		return this.invoke(false, method, args);
 	}
@@ -263,16 +258,25 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			builder.add(PROXY_ID, proxyObject.getProxyId());
 		}
 		if (args != null) {
-			JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
+			int lastNonNullIndex = -1;
 			for (int i = 0; i < args.length; i++) {
-				if (args[i] == null) {
-					argsBuilder.add(JsonValue.NULL);
-				}
-				else {
-					argsBuilder.add(args[i]);
+				if (args[i] != null) {
+					lastNonNullIndex = i;
 				}
 			}
-			builder.add(ARGUMENTS, argsBuilder.build());
+			if (lastNonNullIndex >= 0) {
+				//anything beyond can be stripped.
+				JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
+				for (int i = 0; i <= lastNonNullIndex; i++) {
+					if (args[i] == null) {
+						argsBuilder.addNull();
+					}
+					else {
+						argsBuilder.add(args[i]);
+					}
+				}
+				builder.add(ARGUMENTS, argsBuilder.build());
+			}
 		}
 
 		return this.sendMessage(ACTION_INVOKE, builder.build()).thenApply(resultObj -> {
@@ -365,16 +369,25 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 				builder.add(PROXY_ID, proxyObject.getProxyId());
 			}
 			if (args != null) {
-				JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
+				int lastNonNullIndex = -1;
 				for (int i = 0; i < args.length; i++) {
-					if (args[i] == null) {
-						argsBuilder.add(JsonValue.EMPTY_JSON_OBJECT);
-					}
-					else {
-						argsBuilder.add(args[i]);
+					if (args[i] != null) {
+						lastNonNullIndex = i;
 					}
 				}
-				builder.add(ARGUMENTS, argsBuilder.build());
+				if (lastNonNullIndex >= 0) {
+					//anything beyond can be stripped.
+					JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
+					for (int i = 0; i <= lastNonNullIndex; i++) {
+						if (args[i] == null) {
+							argsBuilder.addNull();
+						}
+						else {
+							argsBuilder.add(args[i]);
+						}
+					}
+					builder.add(ARGUMENTS, argsBuilder.build());
+				}
 			}
 
 			return this.sendMessage(ACTION_ADD_LISTENER, builder.build());
