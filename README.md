@@ -8,10 +8,12 @@ Using the gateway, you can send and receive OpenFin InterApplicationBus messages
 The following code snippet shows how to connect to OpenFin Runtime and invoke OpenFin JavaScript V2 APIs. 
  
 ```java
-OpenFinLauncher.newOpenFinLauncherBuilder()
-        .addRuntimeOption("--v=1")
-        .addRuntimeOption("--no-sandbox")
-        .open(gatewayListener)
+OpenFinGatewayLauncher.newOpenFinGatewayLauncher()
+        .launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+                .runtimeVersion("stable")
+                .addRuntimeOption("--v=1")
+                .addRuntimeOption("--no-sandbox"))
+        .open()
         .thenAccept(gateway -> {
             gateway.invoke("fin.System.getVersion").thenAccept(r -> {
                 System.out.println("openfin version: " + r.getResultAsString());
