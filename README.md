@@ -42,3 +42,5 @@ OpenFinGatewayLauncher.newOpenFinGatewayLauncher()
 Under the hood, it launches OpenFin Runtime directly on MacOS or Linux, and via [OpenFin RVM](https://developers.openfin.co/docs/runtime-version-manager) on Windows. If OpenFin Runtime or RVM cannot be found locally, it will be downloaded from OpenFin's server or specified [assetsUrl](https://developers.openfin.co/docs/hosting-runtimes-rvm-and-other-assets).  
 
 More examples using OpenFin Java Gateway can be found in [OpenFin Java Gateway Examples](https://github.com/mijibox/openfin-java-gateway-examples)
+
+If asynchronous programming is not your thing, check out [OpenFin Java-JavaScript Adapter](https://github.com/mijibox/openfin-jjs-adapter), which is built on top of OpenFin Java Gateway.
