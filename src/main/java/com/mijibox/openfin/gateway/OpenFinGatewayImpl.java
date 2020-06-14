@@ -356,8 +356,11 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
 		String iabTopic = this.topicListener + "-" + this.listenerId.getAndIncrement();
 		OpenFinIabMessageListener iabListener = (src, e) -> {
+			//if it expects the listener to return something (channel api registered actions)
 			JsonValue actionResult = listener.onEvent((JsonArray) e);
-			iab.send(src, iabTopic, actionResult == null ? JsonValue.NULL : actionResult);
+			if (actionResult != null) {
+				iab.send(src, iabTopic, actionResult);
+			}
 		};
 		return this.iab.subscribe(this.gatewayIdentity, iabTopic, iabListener).thenCompose(v -> {
 			JsonObjectBuilder builder = Json.createObjectBuilder()
