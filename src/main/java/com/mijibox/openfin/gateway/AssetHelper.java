@@ -41,13 +41,15 @@ public interface AssetHelper {
 	public static CompletionStage<Path> fetch(String assetUrl, Path targetPath) {
 		return CompletableFuture.supplyAsync(()->{
 			try {
+				long startTime = System.currentTimeMillis();
 				URL url = new URL(assetUrl);
 				logger.info("fetching: {}", url);
 				ReadableByteChannel readableByteChannel = Channels.newChannel(url.openStream());
 				FileOutputStream fileOutputStream = new FileOutputStream(targetPath.toFile());
 				long size = fileOutputStream.getChannel().transferFrom(readableByteChannel, 0, Long.MAX_VALUE);
-				logger.debug("{} fetched, path: {}, size: {}", url, targetPath, size);
 				fileOutputStream.close();
+				long endTime = System.currentTimeMillis();
+				logger.debug("{} fetched to: {}, size: {}, time spent: {}ms", url, targetPath, size, (endTime - startTime));
 				return targetPath;
 			}
 			catch (Exception e) {
@@ -55,6 +57,19 @@ public interface AssetHelper {
 				throw new RuntimeException("unable to fetch " + assetUrl, e);
 			}
 			finally {
+			}
+		});
+	}
+	
+	public static CompletionStage<String> fetchContent(String assetUrl) {
+		return fetch(assetUrl).thenApply(f->{
+			try {
+				String content = new String(Files.readAllBytes(f));
+				Files.delete(f);
+				return content;
+			}
+			catch (Exception e) {
+				throw new RuntimeException("unable to fetchContent", e);
 			}
 		});
 	}

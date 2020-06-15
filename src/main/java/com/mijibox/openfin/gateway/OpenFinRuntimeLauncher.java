@@ -47,17 +47,7 @@ public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 		}
 		else {
 			// no runtimeVersion configured, use "stable"
-			return AssetHelper.fetch(this.assetsUrl + "/release/runtime/stable").thenApply(f -> {
-				try {
-					this.runtimeVersion = new String(Files.readAllBytes(f));
-					Files.delete(f);
-					logger.debug("runtimeversion: {}", this.runtimeVersion);
-					return this.runtimeVersion;
-				}
-				catch (Exception e) {
-					throw new RuntimeException("unable to get runtime version", e);
-				}
-			});
+			return AssetHelper.fetchContent(this.assetsUrl + "/release/runtime/stable");
 		}
 	}
 
