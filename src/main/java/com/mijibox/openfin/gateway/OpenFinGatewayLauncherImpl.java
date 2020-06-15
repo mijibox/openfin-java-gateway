@@ -16,7 +16,7 @@ public class OpenFinGatewayLauncherImpl implements OpenFinGatewayLauncher {
 	private URL configUrl;
 	private OpenFinGatewayListener gatewayListener;
 	
-	OpenFinGatewayLauncherImpl() {
+	public OpenFinGatewayLauncherImpl() {
 		this.injectGatewayScript = true;
 	}
 

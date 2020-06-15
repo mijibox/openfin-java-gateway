@@ -32,9 +32,9 @@ import org.slf4j.LoggerFactory;
 
 public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	private final static Logger logger = LoggerFactory.getLogger(OpenFinRvmLauncher.class);
-	private String rvmVersion;
-	private Path rvmInstallDirectory;
-	private List<String> rvmOptions;
+	protected String rvmVersion;
+	protected Path rvmInstallDirectory;
+	protected List<String> rvmOptions;
 
 	public OpenFinRvmLauncher(OpenFinRvmLauncherBuilder builder) {
 		super(builder);
@@ -46,18 +46,14 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 		}
 	}
 
-	private CompletionStage<Path> getRvmExecutablePath() {
+	protected CompletionStage<Path> getRvmExecutablePath() {
 		Path rvmPath = this.rvmInstallDirectory.resolve("OpenFinRVM.exe");
 		if (!Files.exists(rvmPath, LinkOption.NOFOLLOW_LINKS)) {
-			return CompletableFuture.supplyAsync(() -> {
-				logger.debug("{} not available.", rvmPath);
-				try {
-					this.download();
+			logger.debug("{} not available.", rvmPath);
+			return AssetHelper.fetch(this.assetsUrl + "/release/rvm/" + this.rvmVersion).thenCompose(rvmZip->{
+				return AssetHelper.unzip(rvmZip, this.rvmInstallDirectory).thenApply(f->{
 					return rvmPath;
-				}
-				catch (Exception e) {
-					throw new RuntimeException("error downloading OpenFinRVM", e);
-				}
+				});
 			});
 		}
 		else {
@@ -66,25 +62,15 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 		}
 	}
 
-	private void download() throws Exception {
-		String rvmTarget = "/release/rvm/" + this.rvmVersion;
-		logger.info("download OpenFinRVM from {}", rvmTarget);
-		Path rvmZip = this.download(rvmTarget);
-		logger.debug("RVM downloaded, version: {}, path: {}", this.rvmVersion, rvmZip);
-		this.unzip(rvmZip, this.rvmInstallDirectory);
-		Files.delete(rvmZip);
-	}
-
-
 	@Override
 	public CompletionStage<OpenFinConnection> launch() {
 		logger.info("launching OpenFinRVM");
-		String namedPipeName = UUID.randomUUID().toString();
-		CompletionStage<Integer> portNumberFuture = this.findPortNumber(namedPipeName);
+		String connectionUuid = UUID.randomUUID().toString();
+		CompletionStage<Integer> portNumberFuture = this.findPortNumber(connectionUuid);
 		return this.getRvmExecutablePath().thenApply(rvmPath -> {
 			try {
 				//rvm can handle runtime channel version
-				Path configPath = this.createStartupConfig(namedPipeName);
+				Path configPath = this.createStartupConfig(connectionUuid);
 				List<String> command = new ArrayList<>();
 				command.add(rvmPath.toAbsolutePath().normalize().toString());
 				for (String s : this.rvmOptions) {
@@ -104,7 +90,7 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 				throw new RuntimeException("error launching OpenFinRVM", e);
 			}
 		}).thenCombine(portNumberFuture, (configPath, port) -> {
-			return new OpenFinConnection(namedPipeName, port, this.licenseKey, configPath.toUri().toString());
+			return new OpenFinConnection(connectionUuid, port, this.licenseKey, configPath.toUri().toString());
 		});
 	}
 }

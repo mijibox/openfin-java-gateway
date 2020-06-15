@@ -41,17 +41,17 @@ public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 		this.runtimeDirectory = builder.getRuntimeDirectory();
 	}
 
-	private CompletionStage<String> getRuntimeVersion() {
+	protected CompletionStage<String> getRuntimeVersion() {
 		if (this.runtimeVersion != null) {
 			return CompletableFuture.completedStage(this.runtimeVersion);
 		}
 		else {
 			// no runtimeVersion configured, use "stable"
-			return CompletableFuture.supplyAsync(() -> {
+			return AssetHelper.fetch(this.assetsUrl + "/release/runtime/stable").thenApply(f -> {
 				try {
-					Path f = this.download("/release/runtime/stable");
 					this.runtimeVersion = new String(Files.readAllBytes(f));
 					Files.delete(f);
+					logger.debug("runtimeversion: {}", this.runtimeVersion);
 					return this.runtimeVersion;
 				}
 				catch (Exception e) {
@@ -110,7 +110,7 @@ public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 		});
 	}
 
-	private CompletionStage<Path> getRuntimeExecutablePath() {
+	protected CompletionStage<Path> getRuntimeExecutablePath() {
 		Path runtimePath;
 		if (Platform.isWindows()) {
 			runtimePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "OpenFin/openfin.exe"));
@@ -119,46 +119,39 @@ public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 			runtimePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "openfin"));
 		}
 		else if (Platform.isMac()) {
-			runtimePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "OpenFin.app/Contents/MacOS/OpenFin"));
+			runtimePath = this.runtimeDirectory
+					.resolve(Paths.get(this.runtimeVersion, "OpenFin.app/Contents/MacOS/OpenFin"));
 		}
 		else {
 			throw new RuntimeException("OpenFin runtime unsupported on this platform");
 		}
 		if (!Files.exists(runtimePath, LinkOption.NOFOLLOW_LINKS)) {
-			return CompletableFuture.supplyAsync(() -> {
-				logger.debug("{} not available.", runtimePath);
-				try {
-					String target = null;
-					if (Platform.isWindows() && Platform.is64Bit()) {
-						target = "/release/runtime/x64/" + this.runtimeVersion;
-					}
-					else if (Platform.isWindows()) {
-						target = "/release/runtime/" + this.runtimeVersion;
-					}
-					else if (Platform.isLinux() && Platform.isARM()) {
-						target = "/release/runtime/linux/arm/" + this.runtimeVersion;
-					}
-					else if (Platform.isLinux()) {
-						target = "/release/runtime/linux/x64/" + this.runtimeVersion;
-					}
-					else if (Platform.isMac()) {
-						target = "/release/runtime/mac/x64/" + this.runtimeVersion;
-					}
+			logger.debug("{} not available.", runtimePath);
+			String target = null;
+			if (Platform.isWindows() && Platform.is64Bit()) {
+				target = "/release/runtime/x64/" + this.runtimeVersion;
+			}
+			else if (Platform.isWindows()) {
+				target = "/release/runtime/" + this.runtimeVersion;
+			}
+			else if (Platform.isLinux() && Platform.isARM()) {
+				target = "/release/runtime/linux/arm/" + this.runtimeVersion;
+			}
+			else if (Platform.isLinux()) {
+				target = "/release/runtime/linux/x64/" + this.runtimeVersion;
+			}
+			else if (Platform.isMac()) {
+				target = "/release/runtime/mac/x64/" + this.runtimeVersion;
+			}
 
-					if (target != null) {
-						Path runtimeZip = this.download(target);
-						this.unzip(runtimeZip, this.runtimeDirectory.resolve(this.runtimeVersion));
-						Files.delete(runtimeZip);
-						return runtimePath;
-					}
-					else {
-						throw new RuntimeException("no applicable OpenFin runtime available.");
-					}
-				}
-				catch (Exception e) {
-					throw new RuntimeException("error downloading OpenFin runtime", e);
-				}
-			});
+			if (target != null) {
+				return AssetHelper.fetch(this.assetsUrl + target).thenCompose(zipFile -> {
+					return AssetHelper.unzip(zipFile, this.runtimeDirectory.resolve(this.runtimeVersion));
+				});
+			}
+			else {
+				throw new RuntimeException("no applicable OpenFin runtime available.");
+			}
 		}
 		else {
 			logger.debug("OpenFin runtime executable located: {}", runtimePath);

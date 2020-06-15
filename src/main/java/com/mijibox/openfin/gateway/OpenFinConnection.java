@@ -68,7 +68,7 @@ public class OpenFinConnection implements Listener {
 	private String licenseKey;
 	private String configUrl;
 
-	OpenFinConnection(String connectionUuid, int port, String licenseKey, String configUrl) {
+	public OpenFinConnection(String connectionUuid, int port, String licenseKey, String configUrl) {
 		this.connectionUuid = connectionUuid;
 		this.port = port;
 		this.licenseKey = licenseKey;
