@@ -3,7 +3,7 @@
 
 Using [OpenFin API Protocol](https://github.com/HadoukenIO/core/wiki/API-Protocol) and built on top of the InterApplicationBus messaging. It opens the gateway between your Java application and [OpenFin JavaScript V2 API](https://cdn.openfin.co/docs/javascript/stable/index.html).
 
-Using the gateway, you can send and receive OpenFin InterApplicationBus messages natively or invoke any OpenFin JavaScript V2 API methods.
+Using the gateway, you can send and receive OpenFin InterApplicationBus messages natively or invoke **almost** any OpenFin JavaScript V2 API methods.
 
 The following code snippet shows how to connect to OpenFin Runtime and invoke OpenFin JavaScript V2 APIs. 
  
@@ -44,3 +44,5 @@ Under the hood, it launches OpenFin Runtime directly on MacOS or Linux, and via 
 More examples using OpenFin Java Gateway can be found in [OpenFin Java Gateway Examples](https://github.com/mijibox/openfin-java-gateway-examples)
 
 If asynchronous programming is not your thing, check out [OpenFin Java-JavaScript Adapter](https://github.com/mijibox/openfin-jjs-adapter), which is built on top of OpenFin Java Gateway.
+
+Methods like (fin.System.monitorExternalProcess)[https://developer.openfin.co/docs/javascript/stable/System.html#monitorExternalProcess] that have listener nested inside an object cannot be invoked correctly at the moment. Gateway v2 will have the ability to support such.
