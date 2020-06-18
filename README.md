@@ -45,4 +45,4 @@ More examples using OpenFin Java Gateway can be found in [OpenFin Java Gateway E
 
 If asynchronous programming is not your thing, check out [OpenFin Java-JavaScript Adapter](https://github.com/mijibox/openfin-jjs-adapter), which is built on top of OpenFin Java Gateway.
 
-Methods like (fin.System.monitorExternalProcess)[https://developer.openfin.co/docs/javascript/stable/System.html#monitorExternalProcess] that have listener nested inside an object cannot be invoked correctly at the moment. Gateway v2 will have the ability to support such.
+Methods like [fin.System.monitorExternalProcess](https://developer.openfin.co/docs/javascript/stable/System.html#monitorExternalProcess) that have listener nested inside an object cannot be invoked correctly at the moment. Gateway v2 will have the ability to support such.
