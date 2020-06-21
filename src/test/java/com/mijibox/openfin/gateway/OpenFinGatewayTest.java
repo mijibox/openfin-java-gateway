@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.json.Json;
 import javax.json.JsonObject;
+import javax.json.JsonValue;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -139,27 +140,86 @@ public class OpenFinGatewayTest {
 		String appUuid = UUID.randomUUID().toString();
 		JsonObject startupApp = Json.createObjectBuilder()
 				.add("uuid", appUuid)
+				.add("name", appUuid)
 				.add("url", "https://www.google.com")
 				.add("permissions", Json.createObjectBuilder()
 						.add("System", Json.createObjectBuilder()
 								.add("readRegistryValue", true)))
 				.add("autoShow", true)
 				.build();
-		System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
+		// System.setProperty("com.mijibox.openfin.gateway.showConsole", "true");
 		OpenFinGateway gateway = OpenFinGatewayLauncher
 				.newOpenFinGatewayLauncher()
+				.launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+						.addRuntimeOption("--v=1")
+						.runtimeVersion("stable-v11"))
 				.open(startupApp)
 				.toCompletableFuture().get(10, TimeUnit.SECONDS);
 
 		gateway.invoke("fin.System.readRegistryValue", Json.createValue("HKEY_LOCAL_MACHINE"),
 				Json.createValue("HARDWARE\\DESCRIPTION\\System"), Json.createValue("BootArchitecture"))
-				.thenAccept(r -> {
+				.thenCompose(r -> {
 					logger.debug("readRegistryValue: {}", r.getResultAsJsonObject());
-				})
-				.whenComplete((v, e) -> {
-					gateway.close();
+					return gateway
+							.invoke(true, "fin.Application.wrap",
+									Json.createObjectBuilder().add("uuid", appUuid).build())
+							.thenCompose(r2 -> {
+								return r2.getProxyObject().invoke("quit", JsonValue.TRUE).thenCompose(q -> {
+									return gateway.close();
+								});
+							});
 				})
 				.toCompletableFuture().get(10, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void openManifestUrl() throws Exception {
+		OpenFinGatewayLauncher
+				.newOpenFinGatewayLauncher()
+				.launcherBuilder(OpenFinLauncher.newOpenFinLauncherBuilder()
+						.addRuntimeOption("--v=1")
+						.runtimeVersion("beta"))
+				.open("https://cdn.openfin.co/demos/hello/app.json").thenCompose(gateway -> {
+					return gateway
+							.invoke(true, "fin.Application.wrap",
+									Json.createObjectBuilder().add("uuid", "OpenFinHelloWorld").build())
+							.thenCompose(r -> {
+								return r.getProxyObject().invoke("quit", JsonValue.TRUE).thenCompose(q -> {
+									return gateway.close();
+								});
+							});
+				})
+				.toCompletableFuture()
+				.get(180, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void runtimeLauncherChannelVersion() throws Exception {
+		String appUuid = UUID.randomUUID().toString();
+		JsonObject startupApp = Json.createObjectBuilder()
+				.add("uuid", appUuid)
+				.add("name", appUuid)
+				.add("url", "https://www.google.com")
+				.add("autoShow", true)
+				.build();
+		OpenFinGatewayLauncher
+				.newOpenFinGatewayLauncher()
+				.launcherBuilder(new OpenFinRuntimeLauncherBuilder()
+						.addRuntimeOption("--v=1")
+						.runtimeVersion("stable-v12"))
+				.open(startupApp)
+				.thenCompose(gateway -> {
+					return gateway
+							.invoke(true, "fin.Application.wrap",
+									Json.createObjectBuilder().add("uuid", appUuid).build())
+							.thenCompose(r2 -> {
+								return r2.getProxyObject().invoke("quit", JsonValue.TRUE).thenCompose(q -> {
+									return gateway.close();
+								});
+							});
+				})
+				.toCompletableFuture().get(180, TimeUnit.SECONDS);
+
 	}
 
 }

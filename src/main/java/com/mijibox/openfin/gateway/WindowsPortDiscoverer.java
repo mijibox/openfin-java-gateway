@@ -40,9 +40,9 @@ public class WindowsPortDiscoverer {
 	public WindowsPortDiscoverer() {
 	}
 
-	public CompletionStage<Integer> findPortNumber(String pipeName) {
+	public CompletionStage<Integer> findPortNumber(String connectionUuid) {
 		return CompletableFuture.supplyAsync(() -> {
-			String namedPipeName = "\\\\.\\pipe\\chrome." + pipeName;
+			String namedPipeName = "\\\\.\\pipe\\chrome." + connectionUuid;
 			logger.debug("creating named pipe: {}", namedPipeName);
 			HANDLE hNamedPipe = Kernel32.INSTANCE.CreateNamedPipe(namedPipeName, WinBase.PIPE_ACCESS_DUPLEX, // dwOpenMode
 					WinBase.PIPE_TYPE_BYTE | WinBase.PIPE_READMODE_BYTE | WinBase.PIPE_WAIT, // dwPipeMode

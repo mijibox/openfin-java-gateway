@@ -17,12 +17,11 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -43,10 +42,8 @@ public abstract class AbstractOpenFinLauncher implements OpenFinLauncher {
 	protected String runtimeVersion;
 	protected List<String> runtimeOptions;
 	protected Path openFinDirectory;
-
-	protected AbstractOpenFinLauncher() {
-		this.runtimeOptions = new ArrayList<>();
-	}
+	protected Path startupConfig;
+	protected String connectionUuid;
 
 	public AbstractOpenFinLauncher(AbstractLauncherBuilder builder) {
 		this.licenseKey = builder.getLicenseKey();
@@ -54,38 +51,57 @@ public abstract class AbstractOpenFinLauncher implements OpenFinLauncher {
 		this.runtimeVersion = builder.getRuntimeVersion();
 		this.runtimeOptions = builder.getRuntimeOptions();
 		this.openFinDirectory = builder.getOpenFinDirectory();
+		this.connectionUuid = UUID.randomUUID().toString();
+	}
+	
+	protected CompletionStage<Path> getStartupConfigPath() {
+		if (this.startupConfig == null) {
+			return this.getRuntimeVersion().thenApply(v->{
+				try {
+					StringBuilder args = new StringBuilder("--runtime-information-channel-v6=")
+							.append(Platform.isWindows() ? this.connectionUuid 
+									: "\"/" + PosixPortDiscoverer.getNamedPipeFilePath(this.connectionUuid) + "\"");
+					for (String s : this.runtimeOptions) {
+						args.append(" ").append(s);
+					}
+					JsonObjectBuilder jsonConfigBuilder = Json.createObjectBuilder();
+					if (this.licenseKey != null) {
+						jsonConfigBuilder.add("licenseKey", this.licenseKey);
+					}
+					jsonConfigBuilder.add("runtime", Json.createObjectBuilder()
+							.add("version", this.runtimeVersion)
+							.add("arguments", args.toString()).build());
+					this.startupConfig = Files.createTempFile("OpenFinGateway-", ".json");
+					String configString = jsonConfigBuilder.build().toString();
+					logger.debug("startup config: {}", configString);
+					Files.write(this.startupConfig, configString.getBytes(), StandardOpenOption.CREATE,
+							StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+					return this.startupConfig;
+				}
+				catch (Exception e) {
+					logger.error("error createStartupConfig", e);
+					throw new RuntimeException("error createStartupConfig", e);
+				}
+			});
+		}
+		else {
+			return CompletableFuture.completedStage(this.startupConfig);
+		}
+	}
+	
+	protected CompletionStage<String> getRuntimeVersion() {
+		return CompletableFuture.completedStage(this.runtimeVersion);
 	}
 
-	protected Path createStartupConfig(String namedPipeName) throws IOException {
-		StringBuilder args = new StringBuilder("--runtime-information-channel-v6=").append(namedPipeName);
-		for (String s : this.runtimeOptions) {
-			args.append(" ").append(s);
-		}
-		JsonObjectBuilder jsonConfigBuilder = Json.createObjectBuilder();
 
-		if (this.licenseKey != null) {
-			jsonConfigBuilder.add("licenseKey", this.licenseKey);
-		}
-		jsonConfigBuilder.add("runtime", Json.createObjectBuilder()
-				.add("version", this.runtimeVersion)
-				.add("arguments", args.toString()).build());
-		Path config = Files.createTempFile(null, ".json");
-		String configString = jsonConfigBuilder.build().toString();
-		logger.debug("startup config: {}", configString);
-		Files.write(config, configString.getBytes(), StandardOpenOption.CREATE,
-				StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
-		
-		return config;
-	}
-
-	protected CompletionStage<Integer> findPortNumber(String namedPipeName) {
+	protected CompletionStage<Integer> findPortNumber() {
 		if (Platform.isWindows()) {
 			WindowsPortDiscoverer portDiscoverer = new WindowsPortDiscoverer();
-			return portDiscoverer.findPortNumber(namedPipeName);
+			return portDiscoverer.findPortNumber(this.connectionUuid);
 		}
 		else if (Platform.isLinux() || Platform.isMac()) {
 			PosixPortDiscoverer portDiscoverer = new PosixPortDiscoverer();
-			return portDiscoverer.findPortNumber(namedPipeName);
+			return portDiscoverer.findPortNumber(this.connectionUuid);
 		}
 		else {
 			return CompletableFuture.completedStage(9696);

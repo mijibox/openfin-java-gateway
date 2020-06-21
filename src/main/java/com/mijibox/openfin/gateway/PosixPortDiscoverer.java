@@ -48,16 +48,16 @@ public class PosixPortDiscoverer {
 
 	}
 
-	static String getNamedPipeFilePath(String pipeName) {
+	static String getNamedPipeFilePath(String connectionUuid) {
 		String tmpDir = System.getProperty("java.io.tmpdir");
 		if (!tmpDir.endsWith("/")) {
 			tmpDir = tmpDir + "/";
 		}
-		return tmpDir + "gateway." + pipeName + ".sock";
+		return tmpDir + "gateway." + connectionUuid + ".sock";
 	}
 
-	CompletionStage<Integer> findPortNumber(String pipeName) {
-		String socketName = getNamedPipeFilePath(pipeName);
+	CompletionStage<Integer> findPortNumber(String connectionUuid) {
+		String socketName = getNamedPipeFilePath(connectionUuid);
 		return CompletableFuture.supplyAsync(() -> {
 			try {
 				logger.debug("findPort: {}", socketName);

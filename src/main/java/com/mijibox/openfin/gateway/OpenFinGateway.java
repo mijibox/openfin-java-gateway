@@ -54,9 +54,9 @@ public interface OpenFinGateway {
 
 	CompletionStage<Void> removeListener(String method, String event, ProxyListener listener);
 
-	CompletionStage<OpenFinGateway> close();
+	CompletionStage<? extends OpenFinGateway> close();
 
 	OpenFinInterApplicationBus getOpenFinInterApplicationBus();
 	
-	CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid);
+	CompletionStage<? extends OpenFinGateway> getApplicationGateway(String appUuid);
 }

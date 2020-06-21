@@ -1,34 +1,29 @@
 package com.mijibox.openfin.gateway;
 
-import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import javax.json.JsonObject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mijibox.openfin.gateway.OpenFinGateway.OpenFinGatewayListener;
 
 public class OpenFinGatewayLauncherImpl implements OpenFinGatewayLauncher {
+	private final static Logger logger = LoggerFactory.getLogger(OpenFinGatewayLauncherImpl.class);
 
-	private OpenFinLauncherBuilder launcherBuilder;
-	private boolean injectGatewayScript;
-	private JsonObject starupApp;
-	private URL configUrl;
-	private OpenFinGatewayListener gatewayListener;
+	protected OpenFinLauncherBuilder launcherBuilder;
+	protected JsonObject startupApp;
+	protected String manifestUrl;
+	protected OpenFinGatewayListener gatewayListener;
 	
 	public OpenFinGatewayLauncherImpl() {
-		this.injectGatewayScript = true;
 	}
 
 	@Override
 	public OpenFinGatewayLauncher launcherBuilder(OpenFinLauncherBuilder launcherBuilder) {
 		this.launcherBuilder = launcherBuilder;
-		return this;
-	}
-
-	@Override
-	public OpenFinGatewayLauncher injectGatewayScript(boolean injectGatewayScript) {
-		this.injectGatewayScript = injectGatewayScript;
 		return this;
 	}
 
@@ -39,41 +34,42 @@ public class OpenFinGatewayLauncherImpl implements OpenFinGatewayLauncher {
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> open() {
+	public CompletionStage<? extends OpenFinGateway> open() {
 		return this.openGateway();
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> open(URL configUrl) {
-		this.configUrl = configUrl;
+	public CompletionStage<? extends OpenFinGateway> open(String manifestUrl) {
+		logger.debug("open gateway using manifestUrl: {}", manifestUrl);
+		this.startupApp = null;
+		this.manifestUrl = manifestUrl;
 		return this.openGateway();
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> open(JsonObject startupApp) {
-		this.starupApp = startupApp;
+	public CompletionStage<? extends OpenFinGateway> open(JsonObject startupApp) {
+		logger.debug("open gateway using startupApp: {}", startupApp);
+		this.manifestUrl = null;
+		this.startupApp = startupApp;
 		return this.openGateway();
 	}
-
-	boolean isInjectGatewayScript() {
-		return this.injectGatewayScript;
+	
+	public JsonObject getStartupApp() {
+		return this.startupApp;
 	}
 	
-	JsonObject getStartupApp() {
-		return this.starupApp;
-	}
-	
-	URL getConfigUrl() {
-		return this.configUrl;
+	public String getManifestUrl() {
+		return this.manifestUrl;
 	}
 
-	private CompletionStage<OpenFinGateway> openGateway() {
+	protected CompletionStage<? extends OpenFinGateway> openGateway() {
 		return CompletableFuture.supplyAsync(() -> {
 			if (this.launcherBuilder == null) {
 				this.launcherBuilder = OpenFinLauncher.newOpenFinLauncherBuilder();
 			}
 			return this.launcherBuilder;
 		}).thenCompose(launcherBuilder->{
+			logger.debug("using launcherBuilder: {}", this.launcherBuilder.getClass().getName());
 			return this.launcherBuilder.build()
 					.thenCompose(launcher -> {
 						return launcher.launch();

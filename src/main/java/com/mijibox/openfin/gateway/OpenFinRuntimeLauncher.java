@@ -23,7 +23,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -35,117 +34,149 @@ import com.sun.jna.Platform;
 public class OpenFinRuntimeLauncher extends AbstractOpenFinLauncher {
 	private final static Logger logger = LoggerFactory.getLogger(OpenFinRuntimeLauncher.class);
 	private Path runtimeDirectory;
+	private Path runtimeExecutablePath;
 
 	public OpenFinRuntimeLauncher(OpenFinRuntimeLauncherBuilder builder) {
 		super(builder);
 		this.runtimeDirectory = builder.getRuntimeDirectory();
 	}
 
+	@Override
 	protected CompletionStage<String> getRuntimeVersion() {
-		if (this.runtimeVersion != null) {
-			return CompletableFuture.completedStage(this.runtimeVersion);
+		if (!this.runtimeVersion.contains(".")) {
+			return AssetHelper.fetchContent(this.assetsUrl + "/release/runtime/" + this.runtimeVersion)
+					.thenApply(v -> {
+						logger.debug("channel version: {}, fetched real version: {}", this.runtimeVersion, v);
+						this.runtimeVersion = v;
+						return this.runtimeVersion;
+					});
 		}
 		else {
-			// no runtimeVersion configured, use "stable"
-			return AssetHelper.fetchContent(this.assetsUrl + "/release/runtime/stable");
+			return CompletableFuture.completedStage(this.runtimeVersion);
+		}
+	}
+
+
+	
+	public CompletionStage<List<String>> getCommandArguments() {
+		return this.getExecutablePath().thenCompose(runtimePath -> {
+			return this.getStartupConfigPath().thenApply(configPath -> {
+				List<String> command = new ArrayList<>();
+				command.add("--version-keyword=\"" + this.runtimeVersion + "\"");
+				for (String s : this.runtimeOptions) {
+					command.add(s);
+				}
+				if (Platform.isWindows()) {
+//					command.add("--user-data-dir=" + this.openFinDirectory.normalize().toAbsolutePath().toString());
+					command.add("--runtime-information-channel-v6=" + this.connectionUuid);
+					command.add("--startup-url=" + configPath.normalize().toAbsolutePath().toUri());
+				}
+				else {
+//					command.add("--user-data-dir=/" + this.openFinDirectory.normalize().toAbsolutePath().toString());
+					command.add("--runtime-information-channel-v6=/"
+							+ PosixPortDiscoverer.getNamedPipeFilePath(this.connectionUuid));
+					command.add("--startup-url=file:///" + configPath.normalize().toAbsolutePath().toString());
+				}
+				return command;
+			});
+		});
+	}
+
+	public CompletionStage<Path> getExecutablePath() {
+		if (this.runtimeExecutablePath == null) {
+			if (Platform.isWindows()) {
+				runtimeExecutablePath = this.runtimeDirectory
+						.resolve(Paths.get(this.runtimeVersion, "OpenFin/openfin.exe"));
+			}
+			else if (Platform.isLinux()) {
+				runtimeExecutablePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "openfin"));
+			}
+			else if (Platform.isMac()) {
+				runtimeExecutablePath = this.runtimeDirectory
+						.resolve(Paths.get(this.runtimeVersion, "OpenFin.app/Contents/MacOS/OpenFin"));
+			}
+			else {
+				throw new RuntimeException("OpenFin runtime unsupported on this platform");
+			}
+			if (!Files.exists(runtimeExecutablePath, LinkOption.NOFOLLOW_LINKS)) {
+				logger.debug("{} not available.", runtimeExecutablePath);
+				String target = null;
+				if (Platform.isWindows() && Platform.is64Bit()) {
+					target = "/release/runtime/x64/" + this.runtimeVersion;
+				}
+				else if (Platform.isWindows()) {
+					target = "/release/runtime/" + this.runtimeVersion;
+				}
+				else if (Platform.isLinux() && Platform.isARM()) {
+					target = "/release/runtime/linux/arm/" + this.runtimeVersion;
+				}
+				else if (Platform.isLinux()) {
+					target = "/release/runtime/linux/x64/" + this.runtimeVersion;
+				}
+				else if (Platform.isMac()) {
+					target = "/release/runtime/mac/x64/" + this.runtimeVersion;
+				}
+
+				if (target != null) {
+					return AssetHelper.fetch(this.assetsUrl + target).thenCompose(zipFile -> {
+						return AssetHelper.unzip(zipFile, this.runtimeDirectory.resolve(this.runtimeVersion))
+								.thenApply(f -> {
+									return runtimeExecutablePath;
+								});
+					});
+				}
+				else {
+					throw new RuntimeException("no applicable OpenFin runtime available.");
+				}
+			}
+			else {
+				logger.debug("OpenFin runtime executable located: {}", runtimeExecutablePath);
+				return CompletableFuture.completedStage(runtimeExecutablePath);
+			}
+		}
+		else {
+			return CompletableFuture.completedStage(runtimeExecutablePath);
 		}
 	}
 
 	@Override
 	public CompletionStage<OpenFinConnection> launch() {
-		logger.debug("launch runtime, runtimeDirectory: {}, runtimeVersion: {}", this.runtimeDirectory,
+		logger.debug("launching OpenFin Runtime, runtimeDirectory: {}, runtimeVersion: {}", this.runtimeDirectory,
 				this.runtimeVersion);
-		String namedPipeName = UUID.randomUUID().toString();
 
-		CompletionStage<Integer> portNumberFuture = this.findPortNumber(namedPipeName);
+		CompletionStage<Integer> portNumberFuture = this.findPortNumber();
 
-		return this.getRuntimeVersion().thenCompose(v -> {
-			return this.getRuntimeExecutablePath();
-		}).thenApply(runtimePath -> {
-			try {
-				Path configPath = this.createStartupConfig(Platform.isWindows() ? namedPipeName
-						: "/" + PosixPortDiscoverer.getNamedPipeFilePath(namedPipeName));
-				List<String> command = new ArrayList<>();
-				command.add(runtimePath.toAbsolutePath().normalize().toString());
-				command.add("--version-keyword=\"" + this.runtimeVersion + "\"");
-				for (String s : this.runtimeOptions) {
-					command.add(s);
-				}
-
-				if (Platform.isWindows()) {
-					command.add("--user-data-dir=" + this.openFinDirectory.normalize().toAbsolutePath().toString());
-					command.add("--runtime-information-channel-v6=" + namedPipeName);
-					command.add("--startup-url=" + configPath.normalize().toAbsolutePath().toUri());
-				}
-				else {
-					command.add("--user-data-dir=/" + this.openFinDirectory.normalize().toAbsolutePath().toString());
-					command.add("--runtime-information-channel-v6=/"
-							+ PosixPortDiscoverer.getNamedPipeFilePath(namedPipeName));
-					command.add("--startup-url=file:///" + configPath.normalize().toAbsolutePath().toString());
-				}
-				logger.info("start process: {}", command);
-				ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[] {}))
-						.inheritIO();
-				pb.directory(this.openFinDirectory.getParent().toFile());
-				pb.start();
-				logger.debug("process started");
-				return configPath;
-			}
-			catch (Exception e) {
-				logger.error("error launching OpenFin runtime", e);
-				throw new RuntimeException("error launching OpenFin runtime", e);
-			}
-		}).thenCombine(portNumberFuture, (configPath, n) -> {
-			return new OpenFinConnection(namedPipeName, n, this.licenseKey, configPath.toUri().toString());
-		});
-	}
-
-	protected CompletionStage<Path> getRuntimeExecutablePath() {
-		Path runtimePath;
-		if (Platform.isWindows()) {
-			runtimePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "OpenFin/openfin.exe"));
-		}
-		else if (Platform.isLinux()) {
-			runtimePath = this.runtimeDirectory.resolve(Paths.get(this.runtimeVersion, "openfin"));
-		}
-		else if (Platform.isMac()) {
-			runtimePath = this.runtimeDirectory
-					.resolve(Paths.get(this.runtimeVersion, "OpenFin.app/Contents/MacOS/OpenFin"));
-		}
-		else {
-			throw new RuntimeException("OpenFin runtime unsupported on this platform");
-		}
-		if (!Files.exists(runtimePath, LinkOption.NOFOLLOW_LINKS)) {
-			logger.debug("{} not available.", runtimePath);
-			String target = null;
-			if (Platform.isWindows() && Platform.is64Bit()) {
-				target = "/release/runtime/x64/" + this.runtimeVersion;
-			}
-			else if (Platform.isWindows()) {
-				target = "/release/runtime/" + this.runtimeVersion;
-			}
-			else if (Platform.isLinux() && Platform.isARM()) {
-				target = "/release/runtime/linux/arm/" + this.runtimeVersion;
-			}
-			else if (Platform.isLinux()) {
-				target = "/release/runtime/linux/x64/" + this.runtimeVersion;
-			}
-			else if (Platform.isMac()) {
-				target = "/release/runtime/mac/x64/" + this.runtimeVersion;
-			}
-
-			if (target != null) {
-				return AssetHelper.fetch(this.assetsUrl + target).thenCompose(zipFile -> {
-					return AssetHelper.unzip(zipFile, this.runtimeDirectory.resolve(this.runtimeVersion));
+		return this.getRuntimeVersion()
+				.thenCompose(v -> {
+					return this.getExecutablePath();
+				})
+				.thenCompose(runtimePath -> {
+					return this.getStartupConfigPath();
+				})
+				.thenCompose(configPath -> {
+					return this.getCommandArguments();
+				})
+				.thenApply(args -> {
+					try {
+						ArrayList<String> command = new ArrayList<>(args);
+						command.add(0, this.runtimeExecutablePath.toAbsolutePath().toString());
+						logger.info("start process: {}", command);
+						ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[command.size()]))
+								.inheritIO();
+						pb.directory(this.openFinDirectory.getParent().toFile());
+						pb.start();
+						logger.debug("process started");
+						return this.startupConfig;
+					}
+					catch (Exception e) {
+						logger.error("error launching OpenFin Runtime", e);
+						throw new RuntimeException("error launching OpenFin runtime", e);
+					}
+				})
+				.thenCombine(portNumberFuture, (configPath, n) -> {
+					return new OpenFinConnection(this.connectionUuid, n, this.licenseKey,
+							configPath.toUri().toString());
 				});
-			}
-			else {
-				throw new RuntimeException("no applicable OpenFin runtime available.");
-			}
-		}
-		else {
-			logger.debug("OpenFin runtime executable located: {}", runtimePath);
-			return CompletableFuture.completedStage(runtimePath);
-		}
 	}
+
 }

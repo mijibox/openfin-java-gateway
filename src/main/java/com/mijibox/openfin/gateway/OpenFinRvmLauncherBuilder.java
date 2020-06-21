@@ -46,7 +46,7 @@ public class OpenFinRvmLauncherBuilder extends AbstractLauncherBuilder {
 		});
 	}
 
-	List<String> getRvmOptions() {
+	protected List<String> getRvmOptions() {
 		return this.rvmOptions;
 	}
 
@@ -55,11 +55,11 @@ public class OpenFinRvmLauncherBuilder extends AbstractLauncherBuilder {
 		return this;
 	}
 
-	String getRvmVersion() {
+	protected String getRvmVersion() {
 		return this.rvmVersion;
 	}
 
-	CompletableFuture<String> getRvmLatestVersion() {
+	protected CompletableFuture<String> getRvmLatestVersion() {
 		return CompletableFuture.supplyAsync(() -> {
 			String v = null;
 			try {

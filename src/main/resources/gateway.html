@@ -4,17 +4,17 @@
 <title>OpenFin Java Gateway</title>
 <script>
 if (typeof fin !== 'undefined') {
-	fin.Application.getCurrentSync().getParentUuid().then(parentUuid =>{
-		console.debug('parentUuid: ' + parentUuid);
-		fin.System.addListener('external-application-disconnected', e=>{
-			if (e.uuid == parentUuid) {
-				fin.Application.getCurrent().then(thisApp=>{
+	fin.Application.getCurrent().then(thisApp => {
+		thisApp.getParentUuid().then(parentUuid =>{
+			console.debug('parentUuid: ' + parentUuid);
+			fin.System.addListener('external-application-disconnected', e=>{
+				if (e.uuid == parentUuid) {
 					thisApp.quit(true);
-				});
-			}
+				}
+			});
+		}).catch(error => {
+			console.log('unable to get parentUuid', error);
 		});
-	}).catch(error => {
-		console.log('unable to get parentUuid', error);
 	});
 }
 </script>

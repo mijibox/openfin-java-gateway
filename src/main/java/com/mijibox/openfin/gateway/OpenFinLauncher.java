@@ -32,7 +32,6 @@ public interface OpenFinLauncher {
 		}
 	}
 	
-	
 	/**
 	 * Launch OpenFin Runtime and get the connection to it.
 	 * @return connection to OpenFinRuntime

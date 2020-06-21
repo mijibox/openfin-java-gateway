@@ -36,8 +36,9 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 	protected JsonObject startupApp;
 	protected boolean injectGatewayScript;
 
-	AbstractLauncherBuilder() {
+	protected AbstractLauncherBuilder() {
 		this.assetsUrl = "https://cdn.openfin.co";
+		this.runtimeVersion = "stable";
 		this.runtimeOptions = new ArrayList<>();
 		this.injectGatewayScript = true;
 	}
@@ -48,7 +49,7 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		return this;
 	}
 
-	String getRuntimeVersion() {
+	protected String getRuntimeVersion() {
 		return this.runtimeVersion;
 	}
 
@@ -58,7 +59,7 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		return this;
 	}
 
-	List<String> getRuntimeOptions() {
+	protected List<String> getRuntimeOptions() {
 		return this.runtimeOptions;
 	}
 
@@ -68,7 +69,7 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		return this;
 	}
 
-	String getLicenseKey() {
+	protected String getLicenseKey() {
 		return this.licenseKey;
 	}
 
@@ -78,7 +79,7 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		return this;
 	}
 
-	String getAssetsUrl() {
+	protected String getAssetsUrl() {
 		return this.assetsUrl;
 	}
 
@@ -88,7 +89,7 @@ public abstract class AbstractLauncherBuilder implements OpenFinLauncherBuilder 
 		return this;
 	}
 
-	Path getOpenFinDirectory() {
+	protected Path getOpenFinDirectory() {
 		if (this.openFinDirectory == null) {
 			if (Platform.isWindows()) {
 				String localAppData = System.getenv("LOCALAPPDATA");

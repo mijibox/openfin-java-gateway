@@ -17,13 +17,11 @@ limitations under the License.
 
 package com.mijibox.openfin.gateway;
 
-import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -35,6 +33,7 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 	protected String rvmVersion;
 	protected Path rvmInstallDirectory;
 	protected List<String> rvmOptions;
+	protected Path rvmExecutablePath;
 
 	public OpenFinRvmLauncher(OpenFinRvmLauncherBuilder builder) {
 		super(builder);
@@ -46,51 +45,67 @@ public class OpenFinRvmLauncher extends AbstractOpenFinLauncher {
 		}
 	}
 
-	protected CompletionStage<Path> getRvmExecutablePath() {
-		Path rvmPath = this.rvmInstallDirectory.resolve("OpenFinRVM.exe");
-		if (!Files.exists(rvmPath, LinkOption.NOFOLLOW_LINKS)) {
-			logger.debug("{} not available.", rvmPath);
-			return AssetHelper.fetch(this.assetsUrl + "/release/rvm/" + this.rvmVersion).thenCompose(rvmZip->{
-				return AssetHelper.unzip(rvmZip, this.rvmInstallDirectory).thenApply(f->{
-					return rvmPath;
+	public CompletionStage<Path> getExecutablePath() {
+		this.rvmExecutablePath = this.rvmInstallDirectory.resolve("OpenFinRVM.exe");
+		if (!Files.exists(this.rvmExecutablePath, LinkOption.NOFOLLOW_LINKS)) {
+			logger.debug("{} not available.", this.rvmExecutablePath);
+			return AssetHelper.fetch(this.assetsUrl + "/release/rvm/" + this.rvmVersion).thenCompose(rvmZip -> {
+				return AssetHelper.unzip(rvmZip, this.rvmInstallDirectory).thenApply(f -> {
+					return this.rvmExecutablePath;
 				});
 			});
 		}
 		else {
-			logger.debug("OpenFinRVM executable located: {}", rvmPath);
-			return CompletableFuture.completedStage(rvmPath);
+			logger.debug("OpenFinRVM executable located: {}", this.rvmExecutablePath);
+			return CompletableFuture.completedStage(this.rvmExecutablePath);
 		}
 	}
 
+	public CompletionStage<List<String>> getCommandArguments() {
+		return this.getStartupConfigPath().thenApply(configPath -> {
+			List<String> command = new ArrayList<>();
+			for (String s : this.rvmOptions) {
+				command.add(s);
+			}
+			command.add("--config=" + configPath.toUri().toString());
+			return command;
+		});
+	}
+
+	
 	@Override
 	public CompletionStage<OpenFinConnection> launch() {
-		logger.info("launching OpenFinRVM");
-		String connectionUuid = UUID.randomUUID().toString();
-		CompletionStage<Integer> portNumberFuture = this.findPortNumber(connectionUuid);
-		return this.getRvmExecutablePath().thenApply(rvmPath -> {
-			try {
-				//rvm can handle runtime channel version
-				Path configPath = this.createStartupConfig(connectionUuid);
-				List<String> command = new ArrayList<>();
-				command.add(rvmPath.toAbsolutePath().normalize().toString());
-				for (String s : this.rvmOptions) {
-					command.add(s);
-				}
-				command.add("--config=" + configPath.toUri().toString());
-				
-				logger.info("start process: {}", command);
-				ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[] {}))
-						.redirectOutput(Redirect.DISCARD)
-						.redirectError(Redirect.DISCARD);
-				pb.start();
-				return configPath;
-			}
-			catch (Exception e) {
-				logger.error("error launching OpenFinRVM", e);
-				throw new RuntimeException("error launching OpenFinRVM", e);
-			}
-		}).thenCombine(portNumberFuture, (configPath, port) -> {
-			return new OpenFinConnection(connectionUuid, port, this.licenseKey, configPath.toUri().toString());
-		});
+		logger.info("launching Open Runtim via OpenFinRVM");
+
+		CompletionStage<Integer> portNumberFuture = this.findPortNumber();
+
+		return this.getExecutablePath()
+				.thenCompose(rvmPath -> {
+					return this.getStartupConfigPath();
+				})
+				.thenCompose(configPath -> {
+					return this.getCommandArguments();
+				})
+				.thenApply(args -> {
+					try {
+						ArrayList<String> command = new ArrayList<>(args);
+						command.add(0, this.rvmExecutablePath.toAbsolutePath().toString());
+						logger.info("start process: {}", command);
+						ProcessBuilder pb = new ProcessBuilder(command.toArray(new String[command.size()]))
+								.inheritIO();
+						pb.directory(this.openFinDirectory.getParent().toFile());
+						pb.start();
+						logger.debug("process started");
+						return this.startupConfig;
+					}
+					catch (Exception e) {
+						logger.error("error launching OpenFinRVM", e);
+						throw new RuntimeException("error launching OpenFinRVM", e);
+					}
+				})
+				.thenCombine(portNumberFuture, (configPath, n) -> {
+					return new OpenFinConnection(this.connectionUuid, n, this.licenseKey,
+							configPath.toUri().toString());
+				});
 	}
 }

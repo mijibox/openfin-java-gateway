@@ -98,6 +98,7 @@ public class OpenFinGatewayApiTest {
 		String appUuid = UUID.randomUUID().toString();
 		JsonObject appOpts = Json.createObjectBuilder()
 				.add("uuid", appUuid)
+				.add("name", appUuid) //in v10 it is still required
 				.add("url", "https://www.google.com")
 				.add("autoShow", true)
 				.build();

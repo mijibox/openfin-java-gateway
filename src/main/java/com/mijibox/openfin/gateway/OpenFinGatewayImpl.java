@@ -79,17 +79,26 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	private OpenFinGatewayListener gatewayListener;
 	private String gatewayScriptUrl;
 
-	public static CompletionStage<OpenFinGateway> newInstance(OpenFinGatewayLauncherImpl launcher,
+	public static CompletionStage<? extends OpenFinGateway> newInstance(OpenFinGatewayLauncherImpl launcher,
 			OpenFinConnection connection,
 			OpenFinGatewayListener listener) {
-		return new OpenFinGatewayImpl(null, connection, listener)
-				.createGatewayApplication(launcher.getStartupApp(), launcher.isInjectGatewayScript())
+		return new OpenFinGatewayImpl(null, connection, listener).createGatewayApplication()
 				.thenCompose(gateway -> {
 					return gateway.init();
+				}).thenCompose(gateway -> {
+					if (launcher.getManifestUrl() != null) {
+						return gateway.startApplication(launcher.getManifestUrl());
+					}
+					else if (launcher.getStartupApp() != null) {
+						return gateway.startApplication(launcher.getStartupApp());
+					}
+					else {
+						return CompletableFuture.completedStage(gateway);
+					}
 				});
 	}
 
-	private OpenFinGatewayImpl(String appUuid, OpenFinConnection connection, OpenFinGatewayListener listener) {
+	protected OpenFinGatewayImpl(String appUuid, OpenFinConnection connection, OpenFinGatewayListener listener) {
 		this.gatewayId = appUuid;
 		this.connection = connection;
 		this.gatewayListener = listener;
@@ -116,7 +125,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		}
 	}
 
-	protected CompletionStage<OpenFinGateway> init() {
+	protected CompletionStage<OpenFinGatewayImpl> init() {
 		this.topicExec = gatewayId + "-exec";
 		this.topicListener = gatewayId + "-listener";
 		if (this.gatewayIdentity == null) {
@@ -170,39 +179,37 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 		return tempFile;
 	}
 
-	private CompletionStage<OpenFinGatewayImpl> createGatewayApplication(JsonObject appOpts,
-			boolean injectGatewayScript) {
+	protected CompletionStage<OpenFinGatewayImpl> startApplication(JsonObject appOpts) {
+		return this.invoke("fin.Application.start", appOpts).thenApply(r -> {
+			return this;
+		});
+	}
+
+	protected CompletionStage<OpenFinGatewayImpl> startApplication(String manifestUrl) {
+		return this.invoke("fin.Application.startFromManifest", Json.createValue(manifestUrl)).thenApply(r -> {
+			return this;
+		});
+	}
+
+	protected CompletionStage<OpenFinGatewayImpl> createGatewayApplication() {
 		try {
-			boolean injectScript = injectGatewayScript;
-			this.gatewayScriptUrl = this.extractResource("gateway.js").toUri().toString();
-			if (appOpts == null) {
-				this.gatewayId = connection.getUuid() + "-gateway";
-				injectScript = true;
-				appOpts = Json.createObjectBuilder()
-						.add("uuid", this.gatewayId)
-						.add("name", this.gatewayId)
-						.add("url", this.extractResource("gateway.html").toUri().toString())
-						.add("autoShow", false).build();
-			}
-			else {
-				this.gatewayId = appOpts.getString("uuid");
-			}
+			this.gatewayScriptUrl = this.extractResource("gateway.js").toAbsolutePath().toString();
+			this.gatewayId = connection.getUuid() + "-gateway";
 			this.gatewayIdentity = Json.createObjectBuilder().add("uuid", gatewayId).add("name", gatewayId).build();
-			if (injectScript) {
-				JsonArray scripts = appOpts.getJsonArray("preloadScripts");
-				if (scripts == null) {
-					scripts = Json.createArrayBuilder().build();
-				}
-				scripts = Json.createArrayBuilder(scripts)
-						.add(Json.createObjectBuilder().add("url", this.gatewayScriptUrl)).build();
-				// update existing preloadScript setting.
-				appOpts = Json.createObjectBuilder(appOpts).add("preloadScripts", scripts).build();
-			}
+			JsonObject appOpts = Json.createObjectBuilder()
+					.add("uuid", this.gatewayId)
+					.add("name", this.gatewayId)
+					.add("url", this.extractResource("gateway.html").toUri().toString())
+					.add("autoShow", false)
+					.add("preloadScripts", Json.createArrayBuilder()
+							.add(Json.createObjectBuilder().add("url", this.gatewayScriptUrl)))
+					.build();
 			return this.connection.sendMessage("create-application", appOpts).thenCompose(ack -> {
 				return this.connection.sendMessage("run-application", this.gatewayIdentity);
 			}).thenApply(ack -> {
 				if (!ack.getBoolean("success", false)) {
-					throw new RuntimeException("error createGatewayApplication, reason: " + ack.getString("reason"));
+					throw new RuntimeException(
+							"error createGatewayApplication, reason: " + ack.getString("reason"));
 				}
 				else {
 					return this;
@@ -265,7 +272,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 				}
 			}
 			if (lastNonNullIndex >= 0) {
-				//anything beyond can be stripped.
+				// anything beyond can be stripped.
 				JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
 				for (int i = 0; i <= lastNonNullIndex; i++) {
 					if (args[i] == null) {
@@ -356,7 +363,8 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 			OpenFinEventListener listener, int listenerArgIndex, JsonValue... args) {
 		String iabTopic = this.topicListener + "-" + this.listenerId.getAndIncrement();
 		OpenFinIabMessageListener iabListener = (src, e) -> {
-			//if it expects the listener to return something (channel api registered actions)
+			// if it expects the listener to return something (channel api registered
+			// actions)
 			JsonValue actionResult = listener.onEvent((JsonArray) e);
 			if (actionResult != null) {
 				iab.send(src, iabTopic, actionResult);
@@ -379,7 +387,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 					}
 				}
 				if (lastNonNullIndex >= 0) {
-					//anything beyond can be stripped.
+					// anything beyond can be stripped.
 					JsonArrayBuilder argsBuilder = Json.createArrayBuilder();
 					for (int i = 0; i <= lastNonNullIndex; i++) {
 						if (args[i] == null) {
@@ -446,7 +454,7 @@ public class OpenFinGatewayImpl implements OpenFinGateway {
 	}
 
 	@Override
-	public CompletionStage<OpenFinGateway> getApplicationGateway(String appUuid) {
+	public CompletionStage<? extends OpenFinGateway> getApplicationGateway(String appUuid) {
 		OpenFinGatewayImpl appGateway = new OpenFinGatewayImpl(appUuid, this.connection, null) {
 			@Override
 			public CompletionStage<OpenFinGateway> close() {

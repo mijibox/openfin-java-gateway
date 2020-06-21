@@ -213,7 +213,7 @@ public class OpenFinConnection implements Listener {
 	}
 
 	/**
-	 * only invoke when there will be a responding ack, otherwise use sendWebSocketMessage
+	 * only use this method when there will be a responding ack, otherwise use sendWebSocketMessage
 	 * @param action
 	 * @param payload
 	 * @return
