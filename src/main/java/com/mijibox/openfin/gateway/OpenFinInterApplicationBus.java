@@ -95,7 +95,7 @@ public class OpenFinInterApplicationBus {
 		String key = this.getSubscriptionKey(uuid, name, topic);
 		CopyOnWriteArrayList<OpenFinIabMessageListener> listeners = this.listenerMap.get(key);
 		if (listeners == null) {
-			CopyOnWriteArrayList<OpenFinIabMessageListener> existingListener = this.listenerMap.put(key,
+			CopyOnWriteArrayList<OpenFinIabMessageListener> existingListener = this.listenerMap.putIfAbsent(key,
 					new CopyOnWriteArrayList<>(new OpenFinIabMessageListener[] { listener }));
 			if (existingListener == null) {
 				// first one, send out the subscription
