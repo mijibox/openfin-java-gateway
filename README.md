@@ -46,3 +46,15 @@ More examples using OpenFin Java Gateway can be found in [OpenFin Java Gateway E
 If asynchronous programming is not your thing, check out [OpenFin Java-JavaScript Adapter](https://github.com/mijibox/openfin-jjs-adapter), which is built on top of OpenFin Java Gateway.
 
 Methods like [fin.System.monitorExternalProcess](https://developer.openfin.co/docs/javascript/stable/System.html#monitorExternalProcess) that have listener nested inside an object cannot be invoked correctly at the moment. Gateway v2 will have the ability to support such.
+
+### License
+------
+Apache License 2.0
+
+The code in this repository is covered by the included license.
+
+However, if you run this code, it may call on the OpenFin RVM or OpenFin Runtime, which are covered by OpenFin’s Developer, Community, and Enterprise licenses. You can learn more about OpenFin licensing at the links listed below or just email OpenFin at support@openfin.co with questions.
+
+https://openfin.co/developer-agreement/
+
+https://openfin.co/licensing/
