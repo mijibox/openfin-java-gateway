@@ -47,7 +47,7 @@ If asynchronous programming is not your thing, check out [OpenFin Java-JavaScrip
 
 Methods like [fin.System.monitorExternalProcess](https://developer.openfin.co/docs/javascript/stable/System.html#monitorExternalProcess) that have listener nested inside an object cannot be invoked correctly at the moment. Gateway v2 will have the ability to support such.
 
-### License
+## License
 Apache License 2.0
 
 The code in this repository is covered by the included license.
